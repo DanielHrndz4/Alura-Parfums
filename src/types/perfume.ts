@@ -29,6 +29,7 @@ export interface Perfume {
     heart: string[];
     base: string[];
   };
+  accords?: { name: string; percentage: number; color?: string }[];
   sampleStatusText?: string; // e.g. "Muestra Activa", "Solo Muestra", "1 en vitrina"
   isBestseller?: boolean;
 }

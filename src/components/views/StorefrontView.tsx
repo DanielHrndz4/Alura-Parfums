@@ -27,7 +27,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
     <div className="flex flex-col w-full">
       {/* 1. EDITORIAL HERO SECTION */}
       <section className="relative w-full overflow-hidden bg-[#fbf9f5] pb-10">
-        <div className="max-w-7xl mx-auto px-4 md:px-10 pt-6">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-10 pt-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center min-h-[600px]">
             {/* Left Editorial Copy (7 Cols) */}
             <div className="lg:col-span-7 flex flex-col justify-center pr-0 lg:pr-8 z-10">
@@ -155,7 +155,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
 
       {/* 2. VALUE PROPOSITION STRIP */}
       <section className="w-full bg-[#F5F2EB] py-6 shadow-sm border-y border-[#E6DED1]/60">
-        <div className="max-w-7xl mx-auto px-4 md:px-10">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="flex items-center gap-4 p-2 rounded-lg hover:bg-white/60 transition-colors">
               <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#775a00] shadow-sm flex-shrink-0 border border-[#E6DED1]/60">
@@ -202,7 +202,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
 
       {/* 3. CURATED SHOWCASE / 'SELECCIÓN DEL SALON' */}
       <section className="w-full bg-[#fbf9f5] py-12" id="catalogo">
-        <div className="max-w-7xl mx-auto px-4 md:px-10">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-10">
           {/* Section Header */}
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-8">
             <div>
@@ -253,43 +253,22 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
           </div>
 
           {/* Product Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredBestsellers.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col group border border-[#E6DED1]/70"
+                onClick={() => onNavigate(`/product/${item.id}`)}
+                className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col group border border-[#E6DED1]/70 cursor-pointer"
               >
-                <div className="relative w-full h-80 bg-[#f5f3ef] overflow-hidden">
+                <div className="relative w-full aspect-square bg-[#f5f3ef] overflow-hidden">
                   <img
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                     alt={item.imageAlt}
                     src={item.imageUrl}
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute top-3 left-3 flex flex-col gap-1">
-                    {item.stock === 0 ? (
-                      <span className="bg-[#FAF0EF] text-[#8A2E2B] font-label-sm text-label-sm uppercase px-2 py-1 rounded shadow-sm font-semibold text-[10px]">
-                        Frasco Agotado
-                      </span>
-                    ) : item.stock === 1 ? (
-                      <span className="bg-[#FDF8EA] text-[#946E19] font-label-sm text-label-sm uppercase px-2 py-1 rounded shadow-sm font-bold text-[10px]">
-                        Última unidad en vitrina
-                      </span>
-                    ) : (
-                      <span className="bg-[#eae1d4] text-[#1b1c1a] font-label-sm text-label-sm uppercase px-2 py-1 rounded shadow-sm font-bold text-[10px]">
-                        Decant Privé
-                      </span>
-                    )}
-
-                    {item.hasSample && (
-                      <span className="bg-[#F0F5EE] text-[#2D5A27] font-label-sm text-label-sm uppercase px-2 py-1 rounded shadow-sm font-semibold text-[10px]">
-                        Muestra disponible
-                      </span>
-                    )}
-                  </div>
-
                   <button
-                    className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur text-[#6E665F] hover:text-[#ba1a1a] flex items-center justify-center transition-colors shadow-sm"
+                    className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur text-[#6E665F] hover:text-[#ba1a1a] flex items-center justify-center transition-colors shadow-sm z-10"
                     title="Favoritos"
                   >
                     <span className="material-symbols-outlined text-[18px]">favorite</span>
@@ -384,7 +363,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
 
       {/* 4. 'EL RITO DE LAS MUESTRAS' (THE SAMPLE ATELIER) */}
       <section className="w-full bg-[#F5F2EB] py-16" id="atelier-muestras">
-        <div className="max-w-7xl mx-auto px-4 md:px-10">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             {/* Left Visual Composition (5 Cols) */}
             <div className="lg:col-span-5 relative">
@@ -489,7 +468,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
 
       {/* 5. OLFACTORY FAMILIES EXPLORER */}
       <section className="w-full bg-[#fbf9f5] py-16">
-        <div className="max-w-7xl mx-auto px-4 md:px-10">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-10">
           <div className="text-center max-w-2xl mx-auto mb-10">
             <span className="font-label-sm text-label-sm uppercase tracking-[0.25em] text-[#B8860B] block mb-1 text-xs font-bold">
               Taxonomía Sensorial
@@ -538,7 +517,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
 
       {/* 6. PRESS QUOTES & TESTIMONIALS */}
       <section className="w-full bg-[#F5F2EB] py-16 border-t border-[#E6DED1]">
-        <div className="max-w-7xl mx-auto px-4 md:px-10">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-10">
           <div className="pb-8 mb-10 text-center">
             <span className="font-label-sm text-label-sm uppercase tracking-[0.3em] text-[#B8860B] block mb-2 text-xs font-bold">
               Elogios de la Crítica Internacional

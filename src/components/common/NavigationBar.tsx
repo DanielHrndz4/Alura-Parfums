@@ -17,7 +17,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
     <header className="fixed top-0 left-0 w-full z-50 bg-[#fbf9f5]/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
       {/* Topmost Luxury Ticker */}
       <div className="bg-[#F5F2EB]/80 px-4 md:px-10">
-        <div className="max-w-7xl mx-auto h-8 flex items-center justify-between text-[#4e4635] font-label-sm text-label-sm uppercase tracking-widest text-[10px]">
+        <div className="max-w-[1440px] mx-auto h-8 flex items-center justify-between text-[#4e4635] font-label-sm text-label-sm uppercase tracking-widest text-[10px]">
           <span>Édition Limitée • Expédition de Prestige Offerte dans le Monde</span>
           <div className="flex items-center gap-6">
             <span className="hidden sm:inline">Place Vendôme • Mayfair</span>
@@ -33,7 +33,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
       </div>
 
       {/* Main Bar */}
-      <div className="h-20 max-w-7xl mx-auto px-4 md:px-10 flex items-center justify-between">
+      <div className="h-20 max-w-[1440px] mx-auto px-4 md:px-10 flex items-center justify-between">
         <div className="flex items-center gap-6 flex-1">
           <div className="relative flex items-center w-48 sm:w-64">
             <input
@@ -101,11 +101,11 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
 
       {/* Navigation Links Strip */}
       <div className="bg-[#fbf9f5]/95 shadow-[0_1px_8px_rgba(0,0,0,0.02)] border-t border-[#E6DED1]/40">
-        <nav className="max-w-7xl mx-auto h-12 px-4 md:px-10 flex items-center justify-center gap-4 sm:gap-8 overflow-x-auto">
+        <nav className="max-w-[1440px] mx-auto h-12 px-4 md:px-10 flex items-center justify-center gap-4 sm:gap-8 overflow-x-auto">
           <button
-            onClick={() => onNavigate('vault')}
+            onClick={() => onNavigate('/collection')}
             className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-colors whitespace-nowrap ${
-              activeView === 'vault' ? 'text-[#775a00] font-bold border-b border-[#775a00]' : 'text-[#4e4635] hover:text-[#1b1c1a]'
+              activeView === 'vault' || activeView === '/collection' ? 'text-[#775a00] font-bold border-b border-[#775a00]' : 'text-[#4e4635] hover:text-[#1b1c1a]'
             }`}
           >
             Colección

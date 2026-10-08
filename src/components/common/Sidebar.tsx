@@ -15,27 +15,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     {
-      id: 'inventory',
+      id: '/admin/inventory',
+      aliasKey: 'inventory',
       label: 'Inventario & Catálogo',
       icon: 'inventory_2',
     },
     {
-      id: 'pos',
+      id: '/admin/pos',
+      aliasKey: 'pos',
       label: 'Punto de Venta & Movimientos',
       icon: 'point_of_sale',
     },
     {
-      id: 'credits',
+      id: '/admin/credits',
+      aliasKey: 'credits',
       label: 'Pendiente de Cobro & Créditos',
       icon: 'receipt_long',
     },
     {
-      id: 'suppliers',
+      id: '/admin/suppliers',
+      aliasKey: 'suppliers',
       label: 'Pago a Proveedores & Lotes',
       icon: 'local_shipping',
     },
     {
-      id: 'audit',
+      id: '/admin/audit',
+      aliasKey: 'audit',
       label: 'Estadísticas & Cuadres de Saldo',
       icon: 'account_balance',
     },
@@ -85,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Navigation Items */}
           <nav className="px-3 space-y-1.5 flex flex-col">
             {navItems.map((item) => {
-              const isActive = currentView === item.id;
+              const isActive = currentView === item.id || currentView === item.aliasKey;
               return (
                 <button
                   key={item.id}

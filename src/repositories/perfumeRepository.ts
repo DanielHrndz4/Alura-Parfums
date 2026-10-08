@@ -24,10 +24,16 @@ const INITIAL_PERFUMES: Perfume[] = [
       'Exquisite flacon of Valentino Donna Born in Roma studded with signature rockstuds on pale cream travertine marble lit by gentle Place Vendome morning daylight',
     isBestseller: true,
     notes: {
-      top: ['Grosella negra', 'Pimienta rosa', 'Bergamota'],
+      top: ['Grosella negra', 'Pimienta rosa', 'Bergamota de Calabria'],
       heart: ['Jazmín grandiflorum', 'Té de jazmín', 'Azahar'],
-      base: ['Vainilla bourbon', 'Cachemira', 'Madera de guayaco'],
+      base: ['Vainilla Bourbon', 'Cachemira', 'Madera de guayaco'],
     },
+    accords: [
+      { name: 'Floral Blanco', percentage: 95 },
+      { name: 'Vainilla Bourbon', percentage: 85 },
+      { name: 'Amaderado', percentage: 70 },
+      { name: 'Dulce Ambarino', percentage: 60 },
+    ],
   },
   {
     id: 'p-2',
@@ -50,6 +56,17 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageAlt:
       'Cut crystal flacon of Lattafa Khamrah Qahwa with rich deep amber perfume surrounded by roasted coffee beans',
     isBestseller: true,
+    notes: {
+      top: ['Canela tostada', 'Cardamomo', 'Nuez moscada'],
+      heart: ['Café arábico', 'Praliné', 'Frutas confitadas'],
+      base: ['Vainilla de Madagascar', 'Haba tonka', 'Resina de benjuí'],
+    },
+    accords: [
+      { name: 'Cálido Especiado', percentage: 100 },
+      { name: 'Café Arábico', percentage: 90 },
+      { name: 'Gourmand / Vainilla', percentage: 80 },
+      { name: 'Amaderado Resinoso', percentage: 65 },
+    ],
   },
   {
     id: 'p-3',
@@ -70,13 +87,24 @@ const INITIAL_PERFUMES: Perfume[] = [
       'https://lh3.googleusercontent.com/aida-public/AB6AXuCyMj8LPCzdWC6jVXEvLgBnVn1htGSSe4l47mRq8mup-qZZ2WGZ6L-xwxOXf6jafZaaTB1kt_yeR6IKpQ9Emay3fIMeDvaYEIlcDXg_lA5NZJWZPMo3RdUgkXlM7rNQAGLE0XGwGvoaPdrU61PA_hMw5Pa9IG9CPbGv8K_xPfGqphX2mwZ1viFxt8U0QiyRS0fivwjEzaxyDqqnyhZ97Cn6i0rZdvZjsoB8gRTQX3Db',
     imageAlt:
       'Monolithic black lacquer bottle of Armaf Club de Nuit Urban Elixir resting on brushed champagne brass surface',
+    notes: {
+      top: ['Bergamota de Calabria', 'Pimienta rosa', 'Jazmín silvestre'],
+      heart: ['Pachulí mineral', 'Lavanda de Provenza', 'Geranio'],
+      base: ['Ámbar gris', 'Ambroxan', 'Cedro del Atlas'],
+    },
+    accords: [
+      { name: 'Cítrico Radiante', percentage: 95 },
+      { name: 'Ámbar Gris', percentage: 85 },
+      { name: 'Fresco Especiado', percentage: 75 },
+      { name: 'Amaderado Mineral', percentage: 60 },
+    ],
   },
   {
     id: 'p-4',
     name: 'Santal 33',
     house: 'Le Labo',
     subtitle: 'Decant Atelier 10ml • Atomizador Dorado',
-    gender: 'masc',
+    gender: 'unisex',
     price: 10.0,
     stock: 1,
     hasSample: true,
@@ -92,6 +120,18 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageAlt:
       'Apothecary style minimalist glass bottle of Le Labo Santal 33 with typewriter printed cream paper label',
     isBestseller: true,
+    notes: {
+      top: ['Cardamomo de Guatemala', 'Iris de Florencia', 'Violeta silvestre'],
+      heart: ['Sándalo australiano', 'Papiro', 'Resina de ámbar'],
+      base: ['Cuero artesanal', 'Madera de cedro', 'Almizcle cristalino'],
+    },
+    accords: [
+      { name: 'Amaderado', percentage: 100 },
+      { name: 'Atalcado / Iris', percentage: 85 },
+      { name: 'Cuero Artesanal', percentage: 70 },
+      { name: 'Cálido Especiado', percentage: 60 },
+      { name: 'Violeta Silvestre', percentage: 45 },
+    ],
   },
   {
     id: 'p-5',
@@ -114,6 +154,17 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageAlt:
       'Regal glossy black flacon of Creed Absolu Aventus with embossed silver crest',
     isBestseller: true,
+    notes: {
+      top: ['Grosella negra silvestre', 'Piña ahumada', 'Bergamota', 'Jengibre'],
+      heart: ['Abedul blanco', 'Pachulí de Indonesia', 'Jazmín morado', 'Pimienta rosa'],
+      base: ['Almizcle real', 'Musgo de roble', 'Ámbar gris', 'Vetiver de Haití'],
+    },
+    accords: [
+      { name: 'Ahumado / Abedul', percentage: 95 },
+      { name: 'Frutal Piña', percentage: 90 },
+      { name: 'Amaderado Noble', percentage: 80 },
+      { name: 'Cítrico Fresco', percentage: 65 },
+    ],
   },
   {
     id: 'p-6',
@@ -134,6 +185,17 @@ const INITIAL_PERFUMES: Perfume[] = [
       'https://lh3.googleusercontent.com/aida-public/AB6AXuCNiVl1dAVICyRBtguBQC751dyf8zTfEVwWJq4YV0clSy8hDe1eJSx0kH5v5sFgc0wfhhABYig_FmLQM1XhKc85qA1-RMH2jLmPQdyrBMqQp0_Grhne1lORYlwrY3tIOEJAlH0ELPcWzHalaIWTpPO4z2OvJJEisBMz9w70XPpqAqB6WPqXq8Ga9MluYvzpNURGqjWLmNj2yvMbB7KX4YQvcIOfYoi1X4JyNcfBRzZo',
     imageAlt:
       'Curved radiant blush glass bottle of Dior Poison Girl reflecting soft golden sunlight',
+    notes: {
+      top: ['Naranja amarga siciliana', 'Limón de Calabria'],
+      heart: ['Rosa de Grasse', 'Rosa de Damasco', 'Flor de azahar'],
+      base: ['Haba tonka de Venezuela', 'Vainilla dulce', 'Sándalo', 'Almendras'],
+    },
+    accords: [
+      { name: 'Vainilla Dulce', percentage: 95 },
+      { name: 'Rosa de Grasse', percentage: 85 },
+      { name: 'Cítrico Amargo', percentage: 70 },
+      { name: 'Almendrado', percentage: 60 },
+    ],
   },
   {
     id: 'p-7',
@@ -152,6 +214,17 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBU0eKPz5ZDZW6fV6Hm93HFCm9AKxIijjaBwXTHvaQRYphnV5SaXGZXPgwbJ-7IeNTBouYeDBsWMFM9Y0tYdXSOwiYNphf1fp1DDnsKVCKWAr8eR4eazYst5IXiOm25j9GyAAjqNe621CvQ-m7ldTMc2a6nfwUfo0DghqcwRl1N0w4BE4Vlrjdcb80gC_lxchYKUEF3yLX3lguoC71Phnvr3_I6V0HUJnY77SKTPRJg',
     imageAlt: 'Charming glass perfume flacon with signature blooming daisy cap',
+    notes: {
+      top: ['Fresas silvestres', 'Hojas de violeta', 'Toronja roja'],
+      heart: ['Pétalos de jazmín blanco', 'Violeta silvestre', 'Gardenia'],
+      base: ['Almizcle algodonoso', 'Madera blanca', 'Vainilla suave'],
+    },
+    accords: [
+      { name: 'Floral Fresco', percentage: 95 },
+      { name: 'Frutal Fresa', percentage: 85 },
+      { name: 'Verde Ozónico', percentage: 70 },
+      { name: 'Almizclado', percentage: 55 },
+    ],
   },
   {
     id: 'p-8',
@@ -171,6 +244,17 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuDKxoHWDQI0mwVl8iR1gIZBDB6CoFNyt1EEmVBF4BqYyJF41PT0hTRRg3pO3twfLjuvmsRhQVw3iGWHhKb8vSdrsGziMaF61q50UbeUZniqGfoUo_f3kfGAr8yMIvJiu9kO4cB5nODoGozk-3m5t3iWHZZGuNgPWHugkun38dHZEUTs7dDCCw0k7CYndWJ-K2ix89NmPrfatmc6SFDmtcMwYpIySKxfU1g_Uk2tSn7f',
     imageAlt: 'Sculptural perfume bottle of Lattafa Your Tous with refined metallic accents',
+    notes: {
+      top: ['Bergamota radiante', 'Mandarina confitada', 'Pera blanca'],
+      heart: ['Jazmín Sambac', 'Peonía rosa', 'Flor de naranjo'],
+      base: ['Sándalo cremoso', 'Almizcle blanco', 'Ámbar cálido'],
+    },
+    accords: [
+      { name: 'Floral Dulce', percentage: 90 },
+      { name: 'Cítrico', percentage: 80 },
+      { name: 'Frutal', percentage: 70 },
+      { name: 'Amaderado', percentage: 50 },
+    ],
   },
   {
     id: 'p-9',
@@ -189,6 +273,17 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBXTwkb1B9kiV8W2KdzqU2fMSrciH61abvO6K7pCkYu8ZaEm6AOBuzJgpvH4iPWJlI18lNmRVmnEsGes2bzUDlk3rysPDvPTrtUIawsIZFiYH-YF_gk5q5iUiBK4LmFXbzPaZitp5sCDbk7dERbtjBPTgOO8cFQBhJCzjRDUHprbOXkTdKDEQirQ7g_CfORV3yTpGeB0vp4a8J_g-5fBzQBLDFGwslLhKhNRKLZV2mR',
     imageAlt: 'Luxury high-fashion Carolina Herrera perfume bottle standing tall on marble',
+    notes: {
+      top: ['Almendra garrapiñada', 'Café arábico', 'Bergamota'],
+      heart: ['Jazmín Sambac', 'Tuberosa de la India', 'Orquídea negra'],
+      base: ['Cacao tostado', 'Haba tonka', 'Vainilla de Tahití'],
+    },
+    accords: [
+      { name: 'Cacao / Gourmand', percentage: 95 },
+      { name: 'Floral Blanco', percentage: 85 },
+      { name: 'Almendrado', percentage: 75 },
+      { name: 'Cálido Especiado', percentage: 60 },
+    ],
   },
   {
     id: 'p-10',
@@ -208,6 +303,16 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuDtcLFOr7XWxIrprQ7ME0o22mkBAIAUrs2b7Ln6fGy7C7wgPya10UOZD93pGcz_gpHv5OLfkMKRzFUsXNgZpEg0w1UNIGnDxClo4S4JnUHCKNRhGQ7IUk9RoOyFiCKqRhyvOvKclTZF3wEg8Gd8w2conXwypIo-G0hPR7YiVo-5RbjwQ4xlW_fFET37Qb4eDByi0wTqnAqTmuYjS7S2PNkbdRSibbrO-_acmyhVuQvt',
     imageAlt: 'Elegant tall tapered glass bottle of Can Can perfume with soft pink champagne hue',
+    notes: {
+      top: ['Clementina jugosa', 'Grosella negra', 'Nectarina'],
+      heart: ['Orquídea silvestre', 'Flor de azahar de los naranjos'],
+      base: ['Ámbar dorado', 'Almizcle Sensual', 'Maderas suaves'],
+    },
+    accords: [
+      { name: 'Frutal Clementina', percentage: 90 },
+      { name: 'Floral Orquídea', percentage: 80 },
+      { name: 'Ámbar Dulce', percentage: 70 },
+    ],
   },
   {
     id: 'p-11',
@@ -227,6 +332,17 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuDRDqNTuOqX7o5onTSVNWOmiXPHarQAUcZHwtVLuqoIyyUpOz7cpsUwaTcFQfZpiknbXNiU6pQLFiCUS0ZKFnzC1SdZqR9psMrM1zbhth46t-bE0Eybw2sb5NlPZ-cpysZBpKK34e3NLgzwG6GF6tm7lUmsDHHsmL4SniYCf8WYTP-qUc2-XB4RwHRwaJsA-hSp1UvLFGd0HUvgI4vcVfGBw7bKb5KUTvaVJPVxmm6Y',
     imageAlt: 'Rich cognac-colored glass bottle of Emporio Armani Stronger With You Intensely',
+    notes: {
+      top: ['Pimienta rosa', 'Enebro de Virginia', 'Violeta'],
+      heart: ['Castaña glaseada', 'Canela de Ceilán', 'Salvia esclarea'],
+      base: ['Vainilla Bourbon', 'Haba tonka', 'Ámbar dorado', 'Gamuza'],
+    },
+    accords: [
+      { name: 'Castaña Glaseada', percentage: 100 },
+      { name: 'Vainilla Bourbon', percentage: 90 },
+      { name: 'Cálido Especiado', percentage: 80 },
+      { name: 'Ámbar', percentage: 65 },
+    ],
   },
   {
     id: 'p-12',
@@ -246,6 +362,17 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuDEkobljHnmKe4Gha3GwYdhfJy0tsP7wkiCRirndfJypolr8868LKTlCdNMZ6GWdzZSbM4xk-vdaoEtJ7RJbT4j64UreYIHKkLfTcTXJjeRUkzQ1gv5ZjMwJv01pEwmDp4Uz6cYXCSJAJcbd__HpdQrExs1alSmkU_sLlUBlMoZX3va5mPbILPwM7X1rlYkshKSLUi6DbrjYU2VcWJ_djuUC0GGcMwRQfLhIuCEp0Ex',
     imageAlt: 'Classic smiling crystal bottle of Lancome La Vie Est Belle with silver iridescent ribbon',
+    notes: {
+      top: ['Grosella negra jugosa', 'Pera Conferencia'],
+      heart: ['Iris Pallida de Florencia', 'Jazmín Sambac', 'Flor de azahar'],
+      base: ['Praliné de avellana', 'Vainilla de Madagascar', 'Pachulí de Bali'],
+    },
+    accords: [
+      { name: 'Iris Noble', percentage: 95 },
+      { name: 'Praliné Dulce', percentage: 90 },
+      { name: 'Floral', percentage: 80 },
+      { name: 'Pachulí', percentage: 65 },
+    ],
   },
   {
     id: 'p-13',
@@ -265,6 +392,16 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuDU682nn20rGLInjKj7KGuHvBbbY8c5GVLgOZ9OuUGCdoxCW75gnuuiBJf0zXuSgABeHf1R1VoZR7If5WeBsp4ZFL7MVY5lo6VsaTclz_sJ7QTPGgb8cL6xjY7tJnEKrkvXzshlH8z8tMZYN78Tf-WIxdd7mnqU3UAUJLTZTfXTZNZRAoMontvadIn2caZ64dBVSQ-KHWLMmOVj7EVrKbdXqe8aST1ImNEckFSy0BCh',
     imageAlt: 'Candy-pink and gold embellished flacon of Lattafa Yara Candy',
+    notes: {
+      top: ['Frambuesa caramelizada', 'Mandarina jugosa', 'Grosella roja'],
+      heart: ['Malvavisco esponjoso', 'Gardenia', 'Flor de lis'],
+      base: ['Vainilla sedosa', 'Sándalo cremoso', 'Almizcle blanco'],
+    },
+    accords: [
+      { name: 'Malvavisco Dulce', percentage: 95 },
+      { name: 'Frambuesa', percentage: 85 },
+      { name: 'Vainilla Sedosa', percentage: 75 },
+    ],
   },
   {
     id: 'p-14',
@@ -284,6 +421,16 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuAu7jazXFWu3sYidtA7kBj4RTDehmh6aFj2aZgPORWFCHgJSm-Rh-z9Kf_MDsDSFPyYP8fXgm2Kov8zUnr-vK7SF62aHkl8if9o21Rj7_ApdorLwEaaJn7CZzYgkGA2mX0UQ-N_YQlyb8dQf7gO9oP9JKfMNpu65FlV2mJ163vPXQrpPW9v7qSPhfUbA-jxZzt-law38HVeT-xaobx8PzUE5Zco2aphx11EksLLHvW6',
     imageAlt: 'Tropical sunshine-yellow flacon of Lattafa Yara Tous with gilded filigree',
+    notes: {
+      top: ['Mango exótico maduro', 'Maracuyá silvestre', 'Coco cremoso'],
+      heart: ['Jazmín de verano', 'Flor de azahar', 'Heliotropo'],
+      base: ['Vainilla dorada', 'Cachemira', 'Ámbar cálido'],
+    },
+    accords: [
+      { name: 'Mango Tropical', percentage: 100 },
+      { name: 'Coco Cremosito', percentage: 85 },
+      { name: 'Floral Sol', percentage: 70 },
+    ],
   },
   {
     id: 'p-15',
@@ -302,6 +449,17 @@ const INITIAL_PERFUMES: Perfume[] = [
     imageUrl:
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBYF396SrWvFJrRD58C_9T7YwOkZEmxoyR8s0hUBGKfM7U6Ucn_hwUOTYJTnoqOSCwL8ozY-OmpFbVcg1y0fIfvynqcmW_dH9Ys5-ZIWpBGFQLniVhQD6vhHJBBQRKqJLuYIsMMZQnh-hKfb8uW8faCxlNaR8GRpqTk8bOa-0L2acvTVgequ3_ZxIRiceqwv6J-nZ0KuFIRYIK65tGaW0ZPBrNRtun2sSPGDMQrrdla',
     imageAlt: 'Dark heavy masculine bottle of Lattafa Asad with ornate gold bands',
+    notes: {
+      top: ['Pimienta negra picante', 'Piña ahumada', 'Tabaco rubio'],
+      heart: ['Café tostado arabigo', 'Iris empolvado', 'Pachulí noble'],
+      base: ['Resina de benjuí', 'Vainilla Bourbon', 'Ámbar negro'],
+    },
+    accords: [
+      { name: 'Tabaco Rubio', percentage: 95 },
+      { name: 'Pimienta Negra', percentage: 85 },
+      { name: 'Café Tostado', percentage: 75 },
+      { name: 'Vainilla Bourbon', percentage: 65 },
+    ],
   },
 ];
 
@@ -348,7 +506,21 @@ export class PerfumeRepository {
   private static STORAGE_KEY = 'perfumes_vault';
 
   static getAll(): Perfume[] {
-    return LocalStorageAdapter.get<Perfume[]>(this.STORAGE_KEY, INITIAL_PERFUMES);
+    const stored = LocalStorageAdapter.get<Perfume[]>(this.STORAGE_KEY, INITIAL_PERFUMES);
+    return stored.map((item) => {
+      const init = INITIAL_PERFUMES.find((p) => p.id === item.id);
+      if (init) {
+        return {
+          ...init,
+          ...item,
+          imageUrl: item.imageUrl || init.imageUrl,
+          imageAlt: item.imageAlt || init.imageAlt,
+          notes: item.notes || init.notes,
+          accords: item.accords || init.accords,
+        };
+      }
+      return item;
+    });
   }
 
   static getById(id: string): Perfume | undefined {
