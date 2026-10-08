@@ -1,0 +1,6 @@
+{
+  "name": "Alura Parfums - Haute Parfumerie & Atelier",
+  "description": "Sistema integral de gestión de alta perfumería, vitrina e-commerce, punto de venta POS, control de lotes y cuadre de saldos en Place Vendôme.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
