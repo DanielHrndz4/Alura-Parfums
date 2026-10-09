@@ -41,6 +41,17 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
   const [detailPerfume, setDetailPerfume] = useState<Perfume | null>(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Active filters count for mobile indicator
+  const activeFiltersCount =
+    (selectedGender !== 'all' ? 1 : 0) +
+    selectedBrands.length +
+    selectedFamilies.length +
+    (maxPrice < 60 ? 1 : 0) +
+    (!inStockOnly ? 1 : 0) +
+    (soldoutOnly ? 1 : 0) +
+    (samplesOnly ? 1 : 0);
 
   // Reset pagination on filter changes
   const handleGenderChange = (gender: 'all' | 'fem' | 'masc') => {
@@ -152,14 +163,30 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
           <div className="space-y-1 max-w-2xl">
             <div className="flex items-center gap-2 text-[#B8860B] font-label-sm text-label-sm uppercase tracking-[0.2em] text-xs font-bold">
               <span className="inline-block w-2 h-2 rounded-full bg-[#B8860B] animate-pulse"></span>
-              <span>Inventario Real de Bóveda • Salons Vendôme • Mayfair</span>
+              <span>Inventario Real • Salons Vendôme • Mayfair</span>
             </div>
             <h1 className="font-headline-lg text-[#1A1817] tracking-tight font-serif text-3xl md:text-4xl font-semibold">
-              Catálogo General &amp; Ediciones de Bóveda
+              Catálogo General &amp; Colección Atelier
             </h1>
             <p className="font-body-md text-[#6E665F] text-sm">
               Selección viva de extractos y frascos custodiados en vitrinas climatizadas. Cada ejemplar incluye certificado de sellado y maceración verificada.
             </p>
+
+            {/* Value badges: Mismo Olor • Mayor Duración • Más Barato */}
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#775a00] bg-white/90 px-3 py-1 rounded-full border border-[#E6DED1] shadow-2xs">
+                <span className="material-symbols-outlined text-[14px]">sync</span>
+                <span>Mismo Olor 1:1</span>
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#775a00] bg-white/90 px-3 py-1 rounded-full border border-[#E6DED1] shadow-2xs">
+                <span className="material-symbols-outlined text-[14px]">schedule</span>
+                <span>Mayor Duración (+8-12h)</span>
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#2D5A27] bg-[#F0F5EE] px-3 py-1 rounded-full border border-[#2D5A27]/20 shadow-2xs">
+                <span className="material-symbols-outlined text-[14px]">savings</span>
+                <span>Capacidades de 50ml y 100ml a Precio Directo</span>
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -190,22 +217,31 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
       </section>
 
       {/* Main Storefront Section */}
-      <section className="max-w-[1440px] mx-auto px-6 sm:px-8 md:px-10 lg:px-12 py-10 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-10 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
           {/* Filter Sidebar (Col 1-4 on LG, 1-3 on XL) */}
-          <aside className="lg:col-span-4 xl:col-span-3 space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm space-y-6 sticky top-48 border border-[#E6DED1]">
+          <aside className={`lg:col-span-4 xl:col-span-3 space-y-6 ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
+            <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm space-y-6 sticky top-48 border border-[#E6DED1]">
               <div className="flex items-center justify-between pb-2 bg-[#F5F2EB]/50 p-2 rounded-lg border border-[#E6DED1]/50">
                 <span className="font-title-md text-[#1A1817] flex items-center gap-1 text-xs font-semibold">
                   <span className="material-symbols-outlined text-[18px] text-[#B8860B]">tune</span>
-                  Filtros de Bóveda
+                  Filtros del Catálogo
                 </span>
-                <button
-                  onClick={handleResetFilters}
-                  className="font-label-sm text-[#B8860B] hover:text-[#775a00] uppercase tracking-wider text-[10px] font-bold cursor-pointer"
-                >
-                  Restablecer
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleResetFilters}
+                    className="font-label-sm text-[#B8860B] hover:text-[#775a00] uppercase tracking-wider text-[10px] font-bold cursor-pointer"
+                  >
+                    Restablecer
+                  </button>
+                  <button
+                    onClick={() => setShowMobileFilters(false)}
+                    className="lg:hidden p-1 text-[#6E665F] hover:text-[#1A1817] rounded cursor-pointer"
+                    title="Cerrar filtros"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                </div>
               </div>
 
               {/* Género */}
@@ -403,19 +439,26 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
           {/* Main Catalog Grid */}
           <main className="lg:col-span-8 xl:col-span-9 space-y-6">
             {/* Top Toolbar */}
-            <div className="bg-white p-4 rounded-xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 border border-[#E6DED1]">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-[#6E665F]">Mostrando:</span>
-                <span className="font-mono text-[#1A1817] font-bold">
-                  {filteredPerfumes.length} Piezas Maestras
-                </span>
-                <span className="inline-block w-1 h-1 rounded-full bg-[#B8860B]"></span>
-                <span className="text-[#B8860B] font-label-sm uppercase tracking-wider font-semibold">
-                  Cotejo en Directo
-                </span>
+            <div className="bg-white p-3.5 sm:p-4 rounded-xl shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 border border-[#E6DED1]">
+              <div className="flex items-center justify-between sm:justify-start gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-[#6E665F]">Mostrando:</span>
+                  <span className="font-mono text-[#1A1817] font-bold">
+                    {filteredPerfumes.length} Piezas Maestras
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F2EB] hover:bg-[#eae1d4] border border-[#E6DED1] rounded-lg text-xs font-semibold text-[#1A1817] cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px] text-[#B8860B]">tune</span>
+                  <span>Filtros {activeFiltersCount > 0 ? `(${activeFiltersCount})` : ''}</span>
+                  <span className="material-symbols-outlined text-[16px]">{showMobileFilters ? 'expand_less' : 'expand_more'}</span>
+                </button>
               </div>
 
-              <div className="flex items-center gap-3 w-full sm:w-auto justify-end text-xs">
+              <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end text-xs">
                 <label className="text-[#6E665F] whitespace-nowrap">Ordenar por:</label>
                 <select
                   value={sortBy}
@@ -423,9 +466,9 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                     setSortBy(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="bg-[#F5F2EB] text-[#1A1817] px-3 py-1.5 rounded-lg outline-none cursor-pointer border border-[#E6DED1]"
+                  className="flex-1 sm:flex-none bg-[#F5F2EB] text-[#1A1817] px-3 py-1.5 rounded-lg outline-none cursor-pointer border border-[#E6DED1]"
                 >
-                  <option value="popular">Más Populares (Atelier Vendôme)</option>
+                  <option value="popular">Más Populares (Atelier)</option>
                   <option value="price-asc">Precio: Menor a Mayor</option>
                   <option value="price-desc">Precio: Mayor a Menor</option>
                   <option value="stock">Disponibilidad Inmediata</option>
@@ -435,7 +478,14 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
 
             {/* Perfumes Product Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {paginatedPerfumes.map((perfume) => (
+              {paginatedPerfumes.length === 0 ? (
+                <div className="col-span-full py-16 text-center text-[#6E665F] bg-white rounded-xl border border-dashed border-[#E6DED1] p-8">
+                  <span className="material-symbols-outlined text-4xl text-[#c59b27]/60 mb-2 block">search_off</span>
+                  <h3 className="font-serif text-lg font-bold text-[#1A1817]">No se encontraron fragancias</h3>
+                  <p className="text-xs mt-1">Prueba a restablecer los filtros de búsqueda o registra nuevas creaciones en el Atelier.</p>
+                </div>
+              ) : (
+                paginatedPerfumes.map((perfume) => (
                 <article
                   key={perfume.id}
                   onClick={() => navigate(`/product/${perfume.id}`)}
@@ -456,7 +506,9 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                     <div>
                       <div className="flex justify-between items-start text-[#B8860B] font-label-sm uppercase tracking-widest text-[10px] font-bold">
                         <span>{perfume.house}</span>
-                        <span className="text-[#6E665F] font-normal">{perfume.format}</span>
+                        <span className="text-[#775a00] font-semibold bg-[#F5F2EB] px-2 py-0.5 rounded border border-[#E6DED1]">
+                          {perfume.format.split('•')[0].trim()}
+                        </span>
                       </div>
                       <h3 className="font-headline-sm text-headline-sm text-[#1A1817] mt-1 group-hover:text-[#775a00] transition-colors font-serif font-semibold text-base">
                         {perfume.name}
@@ -466,28 +518,45 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                       </p>
                     </div>
 
-                    <div className="space-y-2 pt-2 border-t border-[#E6DED1]/50">
+                    <div className="space-y-2.5 pt-2.5 border-t border-[#E6DED1]/60">
+                      {/* Dual: Capacidad tan importante como el Precio */}
                       <div className="flex items-center justify-between">
                         <div className="flex flex-col">
-                          <span className="font-label-sm uppercase tracking-wider text-[#6E665F] text-[9px]">
-                            {perfume.stock > 0 ? 'Precio Botella' : 'Precio Bóveda'}
+                          <span className="font-label-sm uppercase tracking-wider text-[#775a00] text-[9px] font-bold flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[11px]">vital_signs</span>
+                            <span>Capacidad</span>
                           </span>
-                          <span className="font-headline-sm text-[#1A1817] font-bold font-mono text-lg">
+                          <span className="font-serif font-bold text-[#1A1817] text-base leading-tight mt-0.5">
+                            {perfume.format.split('•')[0].trim()}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col text-right">
+                          <span className="font-label-sm uppercase tracking-wider text-[#6E665F] text-[9px]">
+                            {perfume.stock > 0 ? 'Precio Especial' : 'Agotado'}
+                          </span>
+                          <span className="font-headline-sm text-[#1A1817] font-bold font-mono text-lg leading-tight mt-0.5">
                             ${perfume.price.toFixed(2)}{' '}
                             <span className="font-body-sm font-normal text-[#6E665F] text-xs">USD</span>
                           </span>
                         </div>
-                        <div className="text-right">
-                          {perfume.stock > 0 ? (
-                            <span className="font-label-sm text-[#2D5A27] bg-[#F0F5EE] px-2 py-1 rounded text-[10px] font-bold">
-                              {perfume.stock} en vitrina
-                            </span>
-                          ) : (
-                            <span className="font-label-sm text-[#8A2E2B] bg-[#FAF0EF] px-2 py-1 rounded text-[10px] font-semibold">
-                              Agotado
-                            </span>
-                          )}
-                        </div>
+                      </div>
+
+                      {/* Sub-tag de propuesta de valor */}
+                      <div className="flex items-center justify-between text-[10px] text-[#775a00] bg-[#FAF8F5] px-2.5 py-1 rounded-md border border-[#E6DED1]/60">
+                        <span className="font-medium flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px] text-[#B8860B]">verified</span>
+                          <span>Inspiración 1:1 • Alta Fijación</span>
+                        </span>
+                        {perfume.stock > 0 ? (
+                          <span className="text-[#2D5A27] font-bold text-[9px] bg-[#F0F5EE] px-2 py-0.5 rounded">
+                            Disponible
+                          </span>
+                        ) : (
+                          <span className="text-[#8A2E2B] font-semibold text-[9px] bg-[#FAF0EF] px-2 py-0.5 rounded">
+                            Preguntar por existencias
+                          </span>
+                        )}
                       </div>
 
                       {perfume.stock > 0 ? (
@@ -505,18 +574,19 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onAddToCart(perfume);
+                            const msg = encodeURIComponent(`Hola, quisiera preguntar por existencias del perfume ${perfume.name} (${perfume.house})`);
+                            window.open(`https://wa.me/?text=${msg}`, '_blank');
                           }}
-                          className="w-full bg-[#F5F2EB] hover:bg-[#eae1d4] text-[#2C2826] font-label-md uppercase tracking-wider py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer"
+                          className="w-full bg-[#F5F2EB] hover:bg-[#eae1d4] text-[#775a00] font-label-md uppercase tracking-wider py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer border border-[#E6DED1]"
                         >
-                          <span className="material-symbols-outlined text-[16px]">bookmark_border</span>
-                          <span>Apartar con 50% (${(perfume.price * 0.5).toFixed(2)})</span>
+                          <span className="material-symbols-outlined text-[16px]">chat</span>
+                          <span>Preguntar por Existencias</span>
                         </button>
                       )}
                     </div>
                   </div>
                 </article>
-              ))}
+              )))}
             </div>
 
             {/* Pagination Controls */}

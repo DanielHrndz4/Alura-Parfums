@@ -1,178 +1,230 @@
-import { SupplierBatchInvoice, ImportRoute, DisbursementScheduleWeek } from '../types/supplier';
-import { LocalStorageAdapter } from '../db/supabaseClient';
-
-const INITIAL_INVOICES: SupplierBatchInvoice[] = [
-  {
-    id: 'LT-2024-PRE',
-    invoiceNumber: 'INV-89104',
-    supplierName: 'Mayfair Fragrance Concierge',
-    supplierCode: 'MY',
-    supplierLocation: 'Londres, UK (Net 15)',
-    concept: '3 frascos Niche Discovery & Tom Ford',
-    conceptDetails: 'Ombré Leather + Tobacco Vanille 50ml',
-    issueDate: '10 Nov 2024',
-    dueDate: '25 Nov 2024',
-    dueDateHighlight: '25 Nov 2024 (5 días)',
-    totalAmount: 95.0,
-    paidAmount: 50.0,
-    pendingAmount: 45.0,
-    status: 'Vence en 5 días',
-    statusType: 'warning',
-  },
-  {
-    id: 'LT-2024-004',
-    invoiceNumber: 'INV-DXB-442',
-    supplierName: 'Al-Haramain Direct',
-    supplierCode: 'AH',
-    supplierLocation: 'Hub Dubái, UAE (Net 30)',
-    concept: '4 frascos Lattafa Khamrah & Club de Nuit',
-    conceptDetails: 'Intense Man Parfum Edition',
-    issueDate: '15 Nov 2024',
-    dueDate: '15 Dic 2024',
-    dueDateHighlight: '15 Dic 2024 (Net 30)',
-    totalAmount: 62.5,
-    paidAmount: 0.0,
-    pendingAmount: 62.5,
-    status: 'Pendiente',
-    statusType: 'pending',
-  },
-  {
-    id: 'LT-2024-003',
-    invoiceNumber: 'MIA-7731',
-    supplierName: 'Distribuidores Miami Vault',
-    supplierCode: 'MV',
-    supplierLocation: 'Florida, USA (Pago Anticipado 50%)',
-    concept: '5 frascos DIOR Sauvage & Valentino',
-    conceptDetails: 'Born in Roma Coral Fantasy 100ml',
-    issueDate: '05 Nov 2024',
-    dueDate: '05 Dic 2024',
-    totalAmount: 70.0,
-    paidAmount: 35.0,
-    pendingAmount: 35.0,
-    status: 'Pendiente',
-    statusType: 'pending',
-  },
-  {
-    id: 'LT-2024-002',
-    invoiceNumber: 'PVI-9921',
-    supplierName: 'Parfums Vendôme Import',
-    supplierCode: 'PV',
-    supplierLocation: 'Place Vendôme, París (Contado)',
-    concept: '2 frascos Baccarat Rouge 540 Extrait',
-    conceptDetails: 'Maison Francis Kurkdjian 70ml',
-    issueDate: '28 Oct 2024',
-    dueDate: 'Liquidado el 02 Nov',
-    totalAmount: 112.5,
-    paidAmount: 112.5,
-    pendingAmount: 0.0,
-    status: 'Pagado',
-    statusType: 'success',
-  },
-  {
-    id: 'LT-2024-001',
-    invoiceNumber: 'OLW-104',
-    supplierName: 'Orient Lux Warehouse',
-    supplierCode: 'OL',
-    supplierLocation: 'Zona Libre Colón, Panamá',
-    concept: 'Muestrarios 5ml y Atomizadores Decant',
-    conceptDetails: '100 viales cristal con grabado dorado',
-    issueDate: '15 Oct 2024',
-    dueDate: 'Liquidado el 25 Oct',
-    totalAmount: 80.0,
-    paidAmount: 80.0,
-    pendingAmount: 0.0,
-    status: 'Pagado',
-    statusType: 'success',
-  },
-];
-
-export const IMPORT_ROUTES: ImportRoute[] = [
-  {
-    id: 'route-1',
-    hub: 'Hub Dubái',
-    icon: 'flight_land',
-    code: 'LT-2024-004',
-    status: 'En Vuelo Directo',
-    statusColor: 'warning',
-  },
-  {
-    id: 'route-2',
-    hub: 'Miami Vault',
-    icon: 'apartment',
-    code: 'LT-2024-PRE',
-    status: 'Validación Aduanal',
-    statusColor: 'neutral',
-  },
-  {
-    id: 'route-3',
-    hub: 'Vendôme París',
-    icon: 'storefront',
-    code: 'LT-2024-002',
-    status: 'Recibido en Atelier',
-    statusColor: 'success',
-  },
-  {
-    id: 'route-4',
-    hub: 'Zona Libre Colón',
-    icon: 'local_shipping',
-    code: 'LT-2024-001',
-    status: 'Liquidado 100%',
-    statusColor: 'success',
-  },
-];
-
-export const DISBURSEMENT_WEEKS: DisbursementScheduleWeek[] = [
-  {
-    weekTitle: 'Semana 4 (20 - 26 Nov) • Mayfair Fragrance',
-    supplier: 'Mayfair Fragrance',
-    amount: 45.0,
-    percentage: 65,
-    colorClass: 'bg-primary-container',
-    notes: 'Vencimiento principal del período • 3 frascos niche',
-  },
-  {
-    weekTitle: 'Semana 1 Dic (01 - 07 Dic) • Distribuidores Miami',
-    supplier: 'Distribuidores Miami',
-    amount: 35.0,
-    percentage: 50,
-    colorClass: 'bg-gold-antique',
-    notes: 'Liquidación saldo restante al arribo aduana',
-  },
-  {
-    weekTitle: 'Semana 2 Dic (08 - 15 Dic) • Al-Haramain Dubái',
-    supplier: 'Al-Haramain Dubái',
-    amount: 62.5,
-    percentage: 85,
-    colorClass: 'bg-secondary',
-    notes: 'Plazo extendido Net 30 días',
-  },
-];
+import { SupplierBatchInvoice, SupplierPaymentRecord } from '../types/supplier';
+import { LocalStorageAdapter, supabase } from '../db/supabaseClient';
 
 export class SupplierRepository {
   private static STORAGE_KEY = 'supplier_invoices';
+  private static PAYMENTS_KEY = 'supplier_payments_history';
 
   static getAll(): SupplierBatchInvoice[] {
-    return LocalStorageAdapter.get<SupplierBatchInvoice[]>(this.STORAGE_KEY, INITIAL_INVOICES);
+    return LocalStorageAdapter.get<SupplierBatchInvoice[]>(this.STORAGE_KEY, []);
   }
 
-  static payInvoice(id: string, amount: number): void {
+  static async fetchInvoicesFromSupabase(): Promise<SupplierBatchInvoice[]> {
+    try {
+      const { data, error } = await supabase
+        .from('supplier_invoices')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error || !data) return this.getAll();
+
+      const mapped: SupplierBatchInvoice[] = data.map((d: any) => ({
+        id: d.id,
+        invoiceNumber: d.invoice_number,
+        supplierName: d.supplier_name,
+        supplierCode: d.supplier_code,
+        supplierLocation: d.supplier_location,
+        concept: d.concept,
+        conceptDetails: d.concept_details,
+        quantity: d.quantity,
+        issueDate: d.issue_date,
+        dueDate: d.due_date,
+        dueDateHighlight: d.due_date_highlight,
+        totalAmount: Number(d.total_amount),
+        paidAmount: Number(d.paid_amount),
+        pendingAmount: Number(d.pending_amount),
+        paymentMethod: d.payment_method,
+        status: d.status,
+        statusType: d.status_type,
+        notes: d.notes,
+      }));
+
+      if (mapped.length > 0) {
+        LocalStorageAdapter.set(this.STORAGE_KEY, mapped);
+        return mapped;
+      }
+      return this.getAll();
+    } catch {
+      return this.getAll();
+    }
+  }
+
+  static getPayments(): SupplierPaymentRecord[] {
+    return LocalStorageAdapter.get<SupplierPaymentRecord[]>(this.PAYMENTS_KEY, []);
+  }
+
+  static async fetchPaymentsFromSupabase(): Promise<SupplierPaymentRecord[]> {
+    try {
+      const { data, error } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error || !data) return this.getPayments();
+
+      const mapped: SupplierPaymentRecord[] = data.map((d: any) => ({
+        id: d.id,
+        expenseId: d.expense_id,
+        date: d.date,
+        supplierName: d.supplier_name,
+        amount: Number(d.amount),
+        paymentMethod: d.payment_method,
+        reference: d.reference,
+      }));
+
+      if (mapped.length > 0) {
+        LocalStorageAdapter.set(this.PAYMENTS_KEY, mapped);
+        return mapped;
+      }
+      return this.getPayments();
+    } catch {
+      return this.getPayments();
+    }
+  }
+
+  static payInvoice(
+    id: string,
+    amount: number,
+    paymentMethod: 'cash' | 'pos' | 'transfer' = 'transfer',
+    reference?: string
+  ): { invoice: SupplierBatchInvoice; newBalance: number } | null {
     const list = this.getAll();
     const item = list.find((i) => i.id === id);
-    if (item) {
-      item.paidAmount += amount;
-      item.pendingAmount = Math.max(0, item.totalAmount - item.paidAmount);
-      if (item.pendingAmount === 0) {
-        item.status = 'Pagado';
-        item.statusType = 'success';
-      }
-      LocalStorageAdapter.set(this.STORAGE_KEY, list);
+    if (!item) return null;
+
+    item.paidAmount = Number((item.paidAmount + amount).toFixed(2));
+    item.pendingAmount = Math.max(0, Number((item.totalAmount - item.paidAmount).toFixed(2)));
+
+    if (item.pendingAmount === 0) {
+      item.status = 'Pagado';
+      item.statusType = 'success';
+      item.dueDateHighlight = 'Liquidado';
+    } else {
+      item.status = 'Abono Parcial';
+      item.statusType = 'warning';
     }
+
+    LocalStorageAdapter.set(this.STORAGE_KEY, list);
+
+    // Record into payments history
+    const payments = this.getPayments();
+    const newPayment: SupplierPaymentRecord = {
+      id: `PAG-${Date.now().toString().slice(-4)}`,
+      expenseId: item.id,
+      date: 'Hoy, ' + new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
+      supplierName: item.supplierName,
+      amount: amount,
+      paymentMethod: paymentMethod,
+      reference: reference || `Pago a factura ${item.invoiceNumber || item.id}`,
+    };
+    payments.unshift(newPayment);
+    LocalStorageAdapter.set(this.PAYMENTS_KEY, payments);
+
+    // Sync to Supabase
+    try {
+      supabase
+        .from('supplier_invoices')
+        .update({
+          paid_amount: item.paidAmount,
+          pending_amount: item.pendingAmount,
+          status: item.status,
+          status_type: item.statusType,
+          due_date_highlight: item.dueDateHighlight,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', item.id)
+        .then();
+
+      supabase
+        .from('supplier_payments')
+        .insert({
+          id: newPayment.id,
+          expense_id: newPayment.expenseId,
+          date: newPayment.date,
+          supplier_name: newPayment.supplierName,
+          amount: newPayment.amount,
+          payment_method: newPayment.paymentMethod,
+          reference: newPayment.reference,
+        })
+        .then();
+    } catch (e) {
+      console.warn('Supabase supplier payment sync error:', e);
+    }
+
+    return { invoice: item, newBalance: item.pendingAmount };
   }
 
   static addInvoice(invoice: SupplierBatchInvoice): void {
     const list = this.getAll();
     list.unshift(invoice);
     LocalStorageAdapter.set(this.STORAGE_KEY, list);
+
+    // Sync to Supabase
+    try {
+      supabase
+        .from('supplier_invoices')
+        .insert({
+          id: invoice.id,
+          invoice_number: invoice.invoiceNumber,
+          supplier_name: invoice.supplierName,
+          supplier_code: invoice.supplierCode,
+          supplier_location: invoice.supplierLocation,
+          concept: invoice.concept,
+          concept_details: invoice.conceptDetails,
+          quantity: invoice.quantity,
+          issue_date: invoice.issueDate,
+          due_date: invoice.dueDate,
+          due_date_highlight: invoice.dueDateHighlight,
+          total_amount: invoice.totalAmount,
+          paid_amount: invoice.paidAmount,
+          pending_amount: invoice.pendingAmount,
+          payment_method: invoice.paymentMethod,
+          status: invoice.status,
+          status_type: invoice.statusType,
+          notes: invoice.notes,
+        })
+        .then();
+    } catch (e) {
+      console.warn('Supabase supplier invoice sync error:', e);
+    }
+
+    // If initial payment was made, record it
+    if (invoice.paidAmount > 0) {
+      const payments = this.getPayments();
+      const pRecord: SupplierPaymentRecord = {
+        id: `PAG-${Date.now().toString().slice(-4)}`,
+        expenseId: invoice.id,
+        date: invoice.issueDate,
+        supplierName: invoice.supplierName,
+        amount: invoice.paidAmount,
+        paymentMethod: invoice.paymentMethod || 'transfer',
+        reference: `Pago inicial registrado en compra ${invoice.invoiceNumber || invoice.id}`,
+      };
+      payments.unshift(pRecord);
+      LocalStorageAdapter.set(this.PAYMENTS_KEY, payments);
+
+      try {
+        supabase
+          .from('supplier_payments')
+          .insert({
+            id: pRecord.id,
+            expense_id: pRecord.expenseId,
+            date: pRecord.date,
+            supplier_name: pRecord.supplierName,
+            amount: pRecord.amount,
+            payment_method: pRecord.paymentMethod,
+            reference: pRecord.reference,
+          })
+          .then();
+      } catch (e) {
+        console.warn('Supabase supplier initial payment sync error:', e);
+      }
+    }
+  }
+
+  static getTotalExpenses(): number {
+    const list = this.getAll();
+    return list.reduce((acc, curr) => acc + curr.totalAmount, 0);
   }
 
   static getTotalPayable(): number {
@@ -180,7 +232,8 @@ export class SupplierRepository {
     return list.reduce((acc, curr) => acc + curr.pendingAmount, 0);
   }
 
-  static getTotalPaidThisMonth(): number {
-    return 192.5; // verified Place Vendôme monthly record
+  static getTotalPaid(): number {
+    const list = this.getAll();
+    return list.reduce((acc, curr) => acc + curr.paidAmount, 0);
   }
 }

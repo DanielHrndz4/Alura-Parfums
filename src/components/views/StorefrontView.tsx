@@ -11,15 +11,15 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
   onNavigate,
   onAddToCart,
 }) => {
-  const [bestsellerFilter, setBestsellerFilter] = useState<'all' | 'full' | 'decants'>('all');
+  const [bestsellerFilter, setBestsellerFilter] = useState<'all' | '100ml' | '50ml'>('all');
   const perfumes = PerfumeRepository.getAll();
 
   // Curated 4 bestsellers for salon section
   const bestsellers = perfumes.filter((p) => p.isBestseller).slice(0, 4);
 
   const filteredBestsellers = bestsellers.filter((p) => {
-    if (bestsellerFilter === 'full') return !p.format.includes('Decant');
-    if (bestsellerFilter === 'decants') return p.format.includes('Decant') || p.hasSample;
+    if (bestsellerFilter === '100ml') return p.format.includes('100ml');
+    if (bestsellerFilter === '50ml') return p.format.includes('50ml');
     return true;
   });
 
@@ -44,17 +44,17 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
               <p className="font-body-lg text-[#6E665F] max-w-xl mb-8 leading-relaxed text-base sm:text-lg">
                 Creaciones exclusivas de alta perfumería, extractos puros de destilación artesanal y casas de autor seleccionadas a mano. Una biblioteca sensorial concebida bajo la luz serena de nuestro taller parisino.
               </p>
-              <div className="flex flex-wrap items-center gap-4 mb-8">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-8">
                 <button
                   onClick={() => onNavigate('vault')}
-                  className="bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] font-title-md text-title-md px-6 sm:px-8 py-3 rounded-lg shadow-[0_4px_20px_rgba(197,155,39,0.22)] transition-all flex items-center gap-2 cursor-pointer font-semibold"
+                  className="w-full sm:w-auto justify-center bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] font-title-md text-title-md px-6 sm:px-8 py-3 rounded-lg shadow-[0_4px_20px_rgba(197,155,39,0.22)] transition-all flex items-center gap-2 cursor-pointer font-semibold"
                 >
                   <span>Explorar Catálogo</span>
                   <span className="material-symbols-outlined text-[18px]">north_east</span>
                 </button>
                 <button
                   onClick={() => onNavigate('vault')}
-                  className="bg-white hover:bg-[#F5F2EB] text-[#2C2826] font-title-md text-title-md px-6 sm:px-8 py-3 rounded-lg border border-[#E6DED1] shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer font-semibold"
+                  className="w-full sm:w-auto justify-center bg-white hover:bg-[#F5F2EB] text-[#2C2826] font-title-md text-title-md px-6 sm:px-8 py-3 rounded-lg border border-[#E6DED1] shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer font-semibold"
                 >
                   <span>Descubrir Muestras &amp; Testers</span>
                   <span className="material-symbols-outlined text-[18px] text-[#B8860B]">science</span>
@@ -77,7 +77,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                     48h
                   </span>
                   <span className="font-label-sm text-label-sm uppercase tracking-widest text-[#6E665F] text-[10px]">
-                    Bóveda Climatizada
+                    Atelier Climatizado
                   </span>
                 </div>
                 <div className="w-[1px] h-8 bg-[#e4e2de]"></div>
@@ -117,34 +117,34 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   </div>
                   <div className="text-right">
                     <span className="font-title-md text-title-md font-semibold text-[#1A1817] block font-mono">
-                      $60.00
+                      $15.00
                     </span>
                     <span className="font-label-sm text-label-sm text-[#2D5A27] bg-[#F0F5EE] px-2 py-0.5 rounded uppercase font-bold text-[10px]">
-                      1 en vitrina
+                      Disponible
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Secondary floating decant pill (Negative offset) */}
+              {/* Secondary floating bottle pill (Negative offset) */}
               <div className="hidden sm:flex absolute -bottom-6 -left-8 bg-[#F5F2EB]/95 backdrop-blur-xl p-4 rounded-xl shadow-xl max-w-xs items-center gap-4 z-20 border border-[#E6DED1]">
                 <div className="w-12 h-14 rounded overflow-hidden flex-shrink-0 bg-[#ECE7DE]">
                   <img
                     className="w-full h-full object-cover"
-                    alt="Creed Absolute Aventus travel decant"
+                    alt="Creed Absolute Aventus"
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMfsvHoKnB7JQ803rlLOU1A9CfFjGYiprcUzYeKkdXhdCaYS8PSgviJG2BCAZwQsdFVCVi2e1sXmTNjsLIBIBd7uUt79M5SeKgIU6nXG1TRvCMt_OQ0ZwKSCWYMclDVebTNhJvX1MBFZ5MnpACI4PS9wL9SehCMeKZlb_TLfI3q4InpU8L7JjO9FDb-YNXiaDIgRWPLxFDfSQE_hxNUsX7ZZIT794P8tAFGeJlX55s"
                     referrerPolicy="no-referrer"
                   />
                 </div>
                 <div>
                   <span className="font-label-sm text-label-sm text-[#775a00] uppercase tracking-widest font-bold text-[10px]">
-                    Decant Privé
+                    Frasco Atelier
                   </span>
                   <p className="font-title-md text-title-md text-[#1A1817] leading-snug text-xs font-semibold">
                     Creed Absolute Aventus
                   </p>
                   <p className="font-body-sm text-body-sm text-[#6E665F] text-[11px]">
-                    5ml Tester • $10.00 USD
+                    50ml • $10.00 USD
                   </p>
                 </div>
               </div>
@@ -182,7 +182,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                 <span className="material-symbols-outlined text-[24px]">ac_unit</span>
               </div>
               <div className="flex flex-col">
-                <span className="font-title-md text-[#1A1817] font-semibold text-sm">Bóveda Climatizada</span>
+                <span className="font-title-md text-[#1A1817] font-semibold text-sm">Atelier Climatizado</span>
                 <span className="font-body-sm text-[#6E665F] text-xs">Preservación a 16°C &amp; alta seguridad</span>
               </div>
             </div>
@@ -230,24 +230,24 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                 Todos
               </button>
               <button
-                onClick={() => setBestsellerFilter('full')}
+                onClick={() => setBestsellerFilter('100ml')}
                 className={`px-4 py-1.5 rounded-lg font-label-md text-label-md uppercase tracking-wider text-xs transition-all ${
-                  bestsellerFilter === 'full'
+                  bestsellerFilter === '100ml'
                     ? 'bg-white text-[#2C2826] shadow-sm border border-[#E6DED1] font-semibold'
                     : 'bg-[#F5F2EB] text-[#6E665F] hover:text-[#1A1817]'
                 }`}
               >
-                Frascos Completos
+                Frascos 100ml
               </button>
               <button
-                onClick={() => setBestsellerFilter('decants')}
+                onClick={() => setBestsellerFilter('50ml')}
                 className={`px-4 py-1.5 rounded-lg font-label-md text-label-md uppercase tracking-wider text-xs transition-all ${
-                  bestsellerFilter === 'decants'
+                  bestsellerFilter === '50ml'
                     ? 'bg-white text-[#2C2826] shadow-sm border border-[#E6DED1] font-semibold'
                     : 'bg-[#F5F2EB] text-[#6E665F] hover:text-[#1A1817]'
                 }`}
               >
-                Decants • Testers
+                Frascos 50ml
               </button>
             </div>
           </div>
@@ -307,28 +307,35 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                         {item.stock > 0 ? (
                           <span className="inline-flex items-center gap-1 font-label-sm text-label-sm text-[#2D5A27] bg-[#F0F5EE] px-2 py-0.5 rounded font-bold text-[10px]">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#2D5A27] animate-pulse"></span>{' '}
-                            {item.stock} disponible{item.stock > 1 ? 's' : ''}
+                            Disponible
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 font-label-sm text-label-sm text-[#B8860B] bg-[#F5F2EB] px-2 py-0.5 rounded font-bold text-[10px]">
-                            Reserva Abierta
+                          <span className="inline-flex items-center gap-1 font-label-sm text-label-sm text-[#8A2E2B] bg-[#FAF0EF] px-2 py-0.5 rounded font-bold text-[10px]">
+                            Preguntar por existencias
                           </span>
                         )}
                       </div>
                     </div>
 
                     <button
-                      onClick={() => onAddToCart(item)}
+                      onClick={() => {
+                        if (item.stock > 0) {
+                          onAddToCart(item);
+                        } else {
+                          const msg = encodeURIComponent(`Hola, quisiera preguntar por existencias del perfume ${item.name} (${item.house})`);
+                          window.open(`https://wa.me/?text=${msg}`, '_blank');
+                        }
+                      }}
                       className={`w-full py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-sm text-xs uppercase font-semibold tracking-wider cursor-pointer ${
                         item.stock > 0
                           ? 'bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817]'
-                          : 'bg-[#F5F2EB] hover:bg-[#eae1d4] text-[#2C2826]'
+                          : 'bg-[#F5F2EB] hover:bg-[#eae1d4] text-[#775a00] border border-[#E6DED1]'
                       }`}
                     >
                       <span className="material-symbols-outlined text-[18px]">
-                        {item.stock > 0 ? 'shopping_bag' : 'bookmark_border'}
+                        {item.stock > 0 ? 'shopping_bag' : 'chat'}
                       </span>
-                      <span>{item.stock > 0 ? 'Añadir a la Bolsa' : 'Apartar Preventa'}</span>
+                      <span>{item.stock > 0 ? 'Añadir a la Bolsa' : 'Preguntar por Existencias'}</span>
                     </button>
                   </div>
                 </div>
@@ -347,7 +354,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   ¿Busca una referencia específica o decant a medida?
                 </p>
                 <p className="font-body-sm text-body-sm text-[#6E665F] text-xs">
-                  Nuestra bóveda cuenta con más de 140 extractos listos para decantar al momento en viales estériles.
+                  Nuestro atelier cuenta con más de 140 extractos listos para decantar al momento en viales estériles.
                 </p>
               </div>
             </div>
@@ -375,7 +382,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <div className="absolute -bottom-6 -right-6 bg-white p-6 rounded-xl shadow-xl max-w-xs border border-[#E6DED1]">
+              <div className="hidden sm:block absolute -bottom-6 -right-6 bg-white p-6 rounded-xl shadow-xl max-w-xs border border-[#E6DED1]">
                 <div className="flex items-center gap-1 text-[#B8860B] mb-1">
                   <span className="material-symbols-outlined text-[16px]">verified</span>
                   <span className="font-label-sm text-label-sm uppercase tracking-widest font-bold text-[10px]">
@@ -635,10 +642,10 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                 Nuestros sommeliers de fragancias diseñan cartas personalizadas para ocasiones memorables, obsequios diplomáticos y bodas de alta gala.
               </p>
             </div>
-            <div className="flex items-center gap-4 z-10 flex-shrink-0">
+            <div className="flex items-center gap-4 z-10 w-full md:w-auto flex-shrink-0">
               <button
                 onClick={() => onNavigate('pos')}
-                className="bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] font-title-md text-title-md px-6 sm:px-8 py-3 rounded-lg shadow-sm transition-all font-semibold text-sm cursor-pointer"
+                className="w-full md:w-auto text-center justify-center bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] font-title-md text-title-md px-6 sm:px-8 py-3 rounded-lg shadow-sm transition-all font-semibold text-sm cursor-pointer"
               >
                 Agendar con Sommelier
               </button>

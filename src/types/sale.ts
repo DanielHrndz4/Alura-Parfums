@@ -1,4 +1,4 @@
-export type PaymentMethod = 'cash' | 'pos' | 'transfer' | 'credit50';
+export type PaymentMethod = 'cash' | 'pos' | 'transfer' | 'credit50' | 'credit100';
 
 export interface CartItem {
   id: string;
@@ -16,7 +16,7 @@ export interface SaleTransaction {
   time: string; // e.g. "16:42"
   date: string; // e.g. "Hoy, 24 Oct"
   clientName: string;
-  clientType?: 'VIP' | 'Mostrador' | 'Online';
+  clientType?: 'Cliente' | 'Mostrador' | 'Online' | string;
   fragranceName: string;
   house: string;
   format: string;
@@ -34,8 +34,27 @@ export interface ClientProfile {
   id: string;
   name: string;
   code: string;
-  tier: 'VIP' | 'Privé' | 'Atelier Regular';
+  tier: string;
   pendingBalance: number;
   lastPurchase: string;
   favoriteHouse: string;
+  phone?: string;
+  notes?: string;
 }
+
+export interface AbonoTransaction {
+  id: string;
+  date: string;
+  time: string;
+  clientId: string;
+  clientName: string;
+  clientCode: string;
+  clientTier: string;
+  amount: number;
+  remainingBalance: number;
+  paymentMethod: 'cash' | 'pos' | 'transfer';
+  paymentMethodLabel: string;
+  reference?: string;
+  status: 'Completado' | 'Conciliado';
+}
+

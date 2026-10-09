@@ -52,33 +52,51 @@ export class PosService {
 
     const paymentLabels: Record<PaymentMethod, string> = {
       cash: 'Efectivo',
-      pos: 'Stripe POS',
-      transfer: 'Zelle Express',
-      credit50: 'Apartado 50%',
+      pos: 'Tarjeta / POS',
+      transfer: 'Transferencia',
+      credit50: 'Cuota 2 Pagos (50%)',
+      credit100: 'Crédito Directo (Pagar Luego)',
     };
 
     const mainFragrance = items.length > 0 ? items[0].name : 'Fragancia Haute Parfumerie';
     const mainHouse = items.length > 0 ? items[0].house : 'Maison Alura';
 
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const dateStr = `Hoy, ${dateNow.getDate()} ${months[dateNow.getMonth()]}`;
+    const cleanClientName = clientName ? clientName.trim() : 'Cliente Mostrador';
+
     const newSale: SaleTransaction = {
       id: newTicketId,
       time: `${hours}:${minutes}`,
-      date: 'Hoy, 24 Oct',
-      clientName: clientName || 'Beatriz Montero',
-      clientType: 'VIP',
+      date: dateStr,
+      clientName: cleanClientName,
+      clientType: cleanClientName.toLowerCase().includes('mostrador') ? 'Mostrador' : 'Cliente',
       fragranceName: mainFragrance,
       house: mainHouse,
-      format: items.length > 1 ? `${items.length} Artículos Atelier` : items[0]?.format || '100ml EDP',
+      format: items.length > 1 ? `${items.length} Artículos Atelier` : items[0]?.format || '100ml',
       paymentMethod,
       paymentMethodLabel: paymentLabels[paymentMethod],
       subtotal,
       discount: 0,
       total,
-      status: paymentMethod === 'credit50' ? 'Apartado 50%' : 'Completado',
+      status:
+        paymentMethod === 'credit100'
+          ? 'Pendiente'
+          : paymentMethod === 'credit50'
+          ? 'Apartado 50%'
+          : 'Completado',
       sampleGiven: complimentarySampleName,
     };
 
     SalesRepository.add(newSale);
+
+    // If sale involves credit, update/create client balance with Supabase persistence
+    if (paymentMethod === 'credit100') {
+      SalesRepository.recordCreditForSale(newSale, total);
+    } else if (paymentMethod === 'credit50') {
+      SalesRepository.recordCreditForSale(newSale, total / 2);
+    }
+
     return newSale;
   }
 }

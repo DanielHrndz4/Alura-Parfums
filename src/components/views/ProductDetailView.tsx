@@ -33,7 +33,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
         </div>
         <h2 className="font-serif text-3xl font-bold text-[#1A1817]">Fragancia No Encontrada</h2>
         <p className="text-[#6E665F] mt-2 text-sm max-w-md mx-auto">
-          El ejemplar de bóveda solicitado no se encuentra registrado en el sistema del Atelier.
+          El ejemplar solicitado no se encuentra registrado en el sistema del Atelier.
         </p>
         <button
           onClick={() => navigate('/collection')}
@@ -82,7 +82,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
   };
 
   return (
-    <div className="w-full bg-[#fbf9f5] min-h-screen pt-10 pb-20">
+    <div className="w-full bg-[#fbf9f5] min-h-screen pt-4 sm:pt-6 pb-20">
       {/* Toast Notification */}
       {addedToast && (
         <div className="fixed top-28 right-6 z-50 bg-[#2D5A27] text-white px-6 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 border border-white/20">
@@ -94,10 +94,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
       )}
 
       <div className="max-w-[1440px] mx-auto px-6 sm:px-8 md:px-10 lg:px-12">
-        {/* Sticky Header Strip (Fijo y estático al topar el header) */}
-        <div className="sticky top-[160px] z-30 bg-[#fbf9f5]/95 backdrop-blur-md pt-3 pb-4 mb-6 border-b border-[#E6DED1]/70 -mx-6 sm:-mx-8 md:-mx-10 lg:-mx-12 px-6 sm:px-8 md:px-10 lg:px-12 shadow-[0_4px_16px_rgba(0,0,0,0.02)] transition-all">
-          <div className="flex flex-col gap-2.5">
-            {/* Navigation Breadcrumb Bar */}
+        <div className="pt-1 pb-4 mb-5 border-b border-[#E6DED1]/70">
+          <div className="flex flex-col gap-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#6E665F]">
               <nav className="flex items-center gap-2 flex-wrap">
                 <Link to="/" className="hover:text-[#775a00] transition-colors">
@@ -105,7 +103,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
                 </Link>
                 <span className="text-[#E6DED1]">/</span>
                 <Link to="/collection" className="hover:text-[#775a00] transition-colors">
-                  Colección Bóveda
+                  Colección
                 </Link>
                 <span className="text-[#E6DED1]">/</span>
                 <span className="text-[#B8860B] font-semibold">{perfume.house}</span>
@@ -138,71 +136,48 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
         </div>
 
         {/* Main Product Showcase Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-          {/* Left Column: Clean Large Sticky Bottle Showcase (Siempre visible al hacer scroll) */}
-          <div className="lg:col-span-5 xl:col-span-6 lg:sticky lg:top-[280px] self-start">
-            <div className="bg-[#F5F2EB] rounded-3xl border border-[#E6DED1]/90 shadow-md p-6 sm:p-10 lg:p-12 flex flex-col items-center justify-center relative min-h-[460px] sm:min-h-[520px] lg:min-h-[580px] group transition-all">
-              {/* Luxury Badge Tag */}
-              <div className="absolute top-5 left-5 z-10 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-[#E6DED1] shadow-xs">
-                <span className="material-symbols-outlined text-[15px] text-[#775a00]">workspace_premium</span>
-                <span className="font-label-sm text-[10px] uppercase font-bold tracking-widest text-[#775a00]">
-                  Pieza de Bóveda
-                </span>
-              </div>
-
-              {perfume.isBestseller && (
-                <div className="absolute top-5 right-5 z-10 bg-[#775a00] text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-xs flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">star</span>
-                  <span>Bestseller</span>
-                </div>
-              )}
-
-              {/* Large Bottle Container */}
-              <div className="w-full flex items-center justify-center py-4 my-auto">
-                <img
-                  src={imgUrl || perfume.imageUrl}
-                  alt={perfume.imageAlt || perfume.name}
-                  onError={() => {
-                    setImgUrl(
-                      'https://lh3.googleusercontent.com/aida-public/AB6AXuDvPngHsj9BKYKVtZJzR1hyR1wks53UJxqtsECJioKaz3j0rbckJrRfzMRPLJdIC6useUVfei0VhCE1O5YQ5KHjpRi6v-xlpBCpXtgfU5CDngLnuBhQRn-3yU7bRxNYUSbuDQso2lLm3o-CDigplH3VR5K3MTNY-2qtv-5NH_UCoXM3B8L8Uj-Zua4dyfwW3l907uHQvv6OCWpmRHE2PcMF9Lc7-mLSbWwVe7L8nJ6p'
-                    );
-                  }}
-                  className="w-full h-auto max-h-[420px] sm:max-h-[480px] lg:max-h-[520px] object-contain drop-shadow-[0_20px_35px_rgba(26,24,23,0.18)] group-hover:scale-105 transition-all duration-700 ease-out select-none"
-                />
-              </div>
-
-              {/* Format & Subtitle Caption */}
-              <div className="mt-4 text-center">
-                <span className="text-[11px] font-serif uppercase tracking-[0.2em] font-semibold text-[#8C827A]">
-                  {perfume.format}
-                </span>
-              </div>
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
+          {/* Left Column: Clean Full-Space Bottle Showcase (Ocupa solo el espacio necesario para la imagen) */}
+          <div className="w-full lg:w-auto lg:flex-shrink-0 lg:sticky lg:top-24 self-start flex justify-center">
+            <div className="relative w-full aspect-square max-h-[calc(100vh-140px)] max-w-[calc(100vh-140px)] sm:w-[420px] md:w-[460px] lg:w-[clamp(340px,calc(100vh-140px),460px)] rounded-3xl overflow-hidden border border-[#E6DED1]/90 shadow-md bg-[#F5F2EB] group transition-all">
+              {/* Full Showcase Image occupying complete container (Limpia sin badges encima) */}
+              <img
+                src={imgUrl || perfume.imageUrl}
+                alt={perfume.imageAlt || perfume.name}
+                referrerPolicy="no-referrer"
+                onError={() => {
+                  setImgUrl(
+                    'https://lh3.googleusercontent.com/aida-public/AB6AXuDvPngHsj9BKYKVtZJzR1hyR1wks53UJxqtsECJioKaz3j0rbckJrRfzMRPLJdIC6useUVfei0VhCE1O5YQ5KHjpRi6v-xlpBCpXtgfU5CDngLnuBhQRn-3yU7bRxNYUSbuDQso2lLm3o-CDigplH3VR5K3MTNY-2qtv-5NH_UCoXM3B8L8Uj-Zua4dyfwW3l907uHQvv6OCWpmRHE2PcMF9Lc7-mLSbWwVe7L8nJ6p'
+                  );
+                }}
+                className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ease-out select-none"
+              />
             </div>
           </div>
 
-          {/* Right Column: Maison Logo + Acordes Principales + Details */}
-          <div className="lg:col-span-7 xl:col-span-6 bg-white rounded-3xl border border-[#E6DED1]/90 shadow-md p-6 sm:p-10 lg:p-12 flex flex-col justify-between space-y-8">
+          {/* Right Column: Acordes Principales + Details (Ocupa todo el resto del espacio) */}
+          <div className="flex-1 w-full min-w-0 bg-white rounded-3xl border border-[#E6DED1]/90 shadow-md p-6 sm:p-10 lg:p-12 flex flex-col justify-between space-y-8">
             <div className="space-y-6">
-              {/* Header Badge & Format */}
-              <div className="flex items-center justify-between gap-4">
-                <div className="bg-[#F5F2EB] px-4 py-2 rounded-xl border border-[#E6DED1] text-center">
-                  <span className="font-serif font-bold text-base text-[#1A1817] block leading-none">
-                    {perfume.house}
+              {/* Refined Luxury Olfactory Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-[#E6DED1]/60">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#775a00] bg-[#F5F2EB] px-3.5 py-1.5 rounded-full border border-[#E6DED1] shadow-2xs">
+                    <span className="material-symbols-outlined text-[15px]">spa</span>
+                    <span>Familia {perfume.family}</span>
                   </span>
-                  <span className="text-[9px] uppercase tracking-widest text-[#B8860B] font-bold block mt-1">
-                    HAUTE PARFUMERIE
+
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6E665F] bg-[#FAF8F5] px-3 py-1.5 rounded-full border border-[#E6DED1]/70">
+                    <span className="material-symbols-outlined text-[14px] text-[#B8860B]">verified</span>
+                    <span>Autenticidad Garantizada</span>
                   </span>
                 </div>
 
-                <span className="font-label-sm uppercase text-[#4e4635] bg-[#F5F2EB] px-3.5 py-1.5 rounded-full text-xs font-semibold border border-[#E6DED1]">
-                  Familia: {perfume.family}
+                <span className="text-xs text-[#6E665F] font-serif italic">
+                  {perfume.subtitle && !perfume.subtitle.toLowerCase().includes(perfume.format.toLowerCase())
+                    ? perfume.subtitle
+                    : 'Edición Especial Custodiada'}
                 </span>
               </div>
-
-              {/* Format & Subtitle */}
-              <p className="text-xs text-[#6E665F] font-semibold tracking-wide uppercase border-b border-[#E6DED1]/60 pb-3">
-                {perfume.format} • {perfume.subtitle || 'Edición de Bóveda Custodiada'}
-              </p>
 
               {/* ACORDES PRINCIPALES (BAR CHARTS EN ESTILO ALURA) */}
               <div className="space-y-3 bg-[#FAF8F5] p-5 rounded-2xl border border-[#E6DED1]/80 shadow-xs">
@@ -244,31 +219,124 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
                 </div>
               </div>
 
-              {/* Pricing & Stock Card */}
-              <div className="p-5 rounded-2xl bg-[#F5F2EB]/80 border border-[#E6DED1] flex items-center justify-between shadow-xs">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-[#6E665F] tracking-widest block">
-                    Precio de Vitrina Atelier
-                  </span>
-                  <div className="flex items-baseline gap-1 mt-0.5">
-                    <span className="font-serif text-3xl sm:text-4xl font-bold text-[#1A1817]">
-                      ${perfume.price.toFixed(2)}
+              {/* Dual Hero: Capacidad & Precio con la misma jerarquía de importancia */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#F5F2EB] to-[#FAF8F5] border border-[#E6DED1] shadow-xs space-y-4">
+                <div className="grid grid-cols-2 gap-4 pb-4 border-b border-[#E6DED1]/70">
+                  {/* Capacidad Prominente */}
+                  <div className="border-r border-[#E6DED1]/70 pr-3">
+                    <span className="text-[10px] uppercase font-bold text-[#775a00] tracking-widest block flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[13px]">vital_signs</span>
+                      <span>Capacidad / Volumen</span>
                     </span>
-                    <span className="text-xs font-sans font-semibold text-[#6E665F]">USD</span>
+                    <div className="flex items-baseline gap-1.5 mt-1">
+                      <span className="font-serif text-3xl sm:text-4xl font-bold text-[#1A1817]">
+                        {perfume.format.split('•')[0].trim()}
+                      </span>
+                      <span className="text-xs font-sans font-bold text-[#B8860B] uppercase">
+                        {perfume.format.split('•')[1]?.trim() || 'Extracto'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-[#6E665F] font-medium block mt-0.5">
+                      Frasco Completo Sellado
+                    </span>
+                  </div>
+
+                  {/* Precio Prominente */}
+                  <div className="pl-1 sm:pl-2">
+                    <span className="text-[10px] uppercase font-bold text-[#775a00] tracking-widest block flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[13px]">payments</span>
+                      <span>Precio Exclusivo</span>
+                    </span>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="font-serif text-3xl sm:text-4xl font-bold text-[#1A1817]">
+                        ${perfume.price.toFixed(2)}
+                      </span>
+                      <span className="text-xs font-sans font-semibold text-[#6E665F]">USD</span>
+                    </div>
+                    <span className="text-[10px] text-[#2D5A27] font-semibold block mt-0.5">
+                      Ahorro directo de hasta el 85%
+                    </span>
                   </div>
                 </div>
 
-                <div>
+                {/* Stock status & Alura replica highlight */}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-0.5">
+                  <div className="flex items-center gap-1.5 text-[#4e4635] text-[11px] font-medium">
+                    <span className="material-symbols-outlined text-[15px] text-[#B8860B]">verified</span>
+                    <span>Inspiración Premium 1:1 • Mismo Olor</span>
+                  </div>
+
                   {perfume.stock > 0 ? (
-                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#F0F5EE] text-[#2D5A27] text-xs font-bold border border-[#2D5A27]/20 shadow-xs">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F0F5EE] text-[#2D5A27] text-xs font-bold border border-[#2D5A27]/20 shadow-2xs">
                       <span className="w-2 h-2 rounded-full bg-[#2D5A27] animate-pulse"></span>
-                      {perfume.stock} {perfume.stock === 1 ? 'unidad en vitrina' : 'unidades en vitrina'}
+                      <span>Disponible</span>
                     </span>
                   ) : (
-                    <span className="px-3.5 py-1.5 rounded-full bg-[#FAF0EF] text-[#8A2E2B] text-xs font-bold border border-[#8A2E2B]/20">
-                      Agotado Temporalmente
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF0EF] text-[#8A2E2B] text-xs font-bold border border-[#8A2E2B]/20">
+                      <span className="w-2 h-2 rounded-full bg-[#8A2E2B]"></span>
+                      <span>Preguntar por existencias</span>
                     </span>
                   )}
+                </div>
+              </div>
+
+              {/* Fórmula Alura: Mismo Olor • Mayor Duración • Mucho Más Barato */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF8F5] border border-[#E6DED1] shadow-xs">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E6DED1]/60 pb-2">
+                  <span className="text-[11px] font-bold text-[#775a00] uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px]">science</span>
+                    <span>Garantía de Fórmula Alura</span>
+                  </span>
+                  <span className="text-[10px] text-[#B8860B] font-serif uppercase tracking-wider font-semibold">
+                    Réplica Exacta &amp; Fijación Superior
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Feature 1: Mismo Olor */}
+                  <div className="flex items-start gap-2.5 bg-white p-3 rounded-xl border border-[#E6DED1]/70">
+                    <span className="w-7 h-7 rounded-lg bg-[#F5F2EB] flex items-center justify-center text-[#775a00] flex-shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-[16px]">sync</span>
+                    </span>
+                    <div>
+                      <span className="font-serif font-bold text-xs text-[#1A1817] block leading-snug">
+                        Mismo Olor
+                      </span>
+                      <span className="text-[10px] text-[#6E665F] block leading-tight mt-0.5">
+                        Calibración 1:1 idéntica a la fórmula original de {perfume.house}.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Feature 2: Mayor Duración */}
+                  <div className="flex items-start gap-2.5 bg-white p-3 rounded-xl border border-[#E6DED1]/70">
+                    <span className="w-7 h-7 rounded-lg bg-[#F5F2EB] flex items-center justify-center text-[#775a00] flex-shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-[16px]">schedule</span>
+                    </span>
+                    <div>
+                      <span className="font-serif font-bold text-xs text-[#1A1817] block leading-snug">
+                        Mayor Duración
+                      </span>
+                      <span className="text-[10px] text-[#6E665F] block leading-tight mt-0.5">
+                        Mayor concentración de aceites esenciales: 8 a 12+ horas de estela viva.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Feature 3: Más Barato */}
+                  <div className="flex items-start gap-2.5 bg-white p-3 rounded-xl border border-[#E6DED1]/70">
+                    <span className="w-7 h-7 rounded-lg bg-[#F5F2EB] flex items-center justify-center text-[#775a00] flex-shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-[16px]">savings</span>
+                    </span>
+                    <div>
+                      <span className="font-serif font-bold text-xs text-[#1A1817] block leading-snug">
+                        Más Accesible
+                      </span>
+                      <span className="text-[10px] text-[#6E665F] block leading-tight mt-0.5">
+                        Misma experiencia de lujo a una fracción del precio comercial.
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -344,60 +412,67 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
 
             {/* Order Controls & Actions */}
             <div className="pt-6 border-t border-[#E6DED1] space-y-5">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                 {/* Quantity selector */}
-                <div className="flex items-center border border-[#E6DED1] rounded-xl overflow-hidden bg-[#F5F2EB] shadow-xs">
-                  <button
-                    disabled={quantity <= 1}
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="w-10 h-11 text-[#1A1817] hover:bg-[#eae1d4] disabled:opacity-30 transition-colors font-bold text-base cursor-pointer flex items-center justify-center"
-                  >
-                    -
-                  </button>
-                  <span className="w-10 text-center font-mono font-bold text-base text-[#1A1817]">
-                    {quantity}
-                  </span>
-                  <button
-                    disabled={quantity >= perfume.stock}
-                    onClick={() => setQuantity((q) => Math.min(perfume.stock, q + 1))}
-                    className="w-10 h-11 text-[#1A1817] hover:bg-[#eae1d4] disabled:opacity-30 transition-colors font-bold text-base cursor-pointer flex items-center justify-center"
-                  >
-                    +
-                  </button>
+                <div className="flex items-center justify-between sm:justify-start border border-[#E6DED1] rounded-xl overflow-hidden bg-[#F5F2EB] shadow-xs px-2 sm:px-0">
+                  <span className="sm:hidden text-xs font-semibold text-[#6E665F] pl-2">Cantidad:</span>
+                  <div className="flex items-center">
+                    <button
+                      disabled={quantity <= 1}
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="w-10 h-11 text-[#1A1817] hover:bg-[#eae1d4] disabled:opacity-30 transition-colors font-bold text-base cursor-pointer flex items-center justify-center"
+                    >
+                      -
+                    </button>
+                    <span className="w-10 text-center font-mono font-bold text-base text-[#1A1817]">
+                      {quantity}
+                    </span>
+                    <button
+                      disabled={quantity >= perfume.stock}
+                      onClick={() => setQuantity((q) => Math.min(perfume.stock, q + 1))}
+                      className="w-10 h-11 text-[#1A1817] hover:bg-[#eae1d4] disabled:opacity-30 transition-colors font-bold text-base cursor-pointer flex items-center justify-center"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
 
                 {/* Add to Cart CTA */}
                 {perfume.stock > 0 ? (
                   <button
                     onClick={handleAdd}
-                    className="flex-1 bg-[#775a00] hover:bg-[#B8860B] text-white py-4 px-6 rounded-xl font-label-md text-xs uppercase tracking-wider font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                    className="flex-1 w-full bg-[#775a00] hover:bg-[#B8860B] text-white py-3.5 sm:py-4 px-6 rounded-xl font-label-md text-xs uppercase tracking-wider font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
                   >
                     <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
                     <span>Añadir a la Bolsa (${(perfume.price * quantity).toFixed(2)} USD)</span>
                   </button>
                 ) : (
                   <button
-                    disabled
-                    className="flex-1 bg-[#E6DED1] text-[#6E665F] py-4 px-6 rounded-xl font-label-md text-xs uppercase tracking-wider font-semibold cursor-not-allowed text-center"
+                    onClick={() => {
+                      const msg = encodeURIComponent(`Hola, quisiera preguntar por existencias del perfume ${perfume.name} (${perfume.house})`);
+                      window.open(`https://wa.me/?text=${msg}`, '_blank');
+                    }}
+                    className="flex-1 w-full bg-[#F5F2EB] hover:bg-[#eae1d4] text-[#775a00] border border-[#E6DED1] py-3.5 sm:py-4 px-6 rounded-xl font-label-md text-xs uppercase tracking-wider font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    Agotado en Vitrina
+                    <span className="material-symbols-outlined text-[20px]">chat</span>
+                    <span>Preguntar por existencias</span>
                   </button>
                 )}
               </div>
 
-              {/* Guarantees strip */}
-              <div className="grid grid-cols-3 gap-3 text-center text-[10px] text-[#6E665F]">
-                <div className="p-2.5 rounded-xl bg-[#F5F2EB]/60 border border-[#E6DED1]/60 flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined text-[16px] text-[#775a00]">verified</span>
-                  <span className="font-medium">100% Auténtico</span>
+              {/* Guarantees strip: Mismo Olor • Mayor Duración • Capacidad Íntegra */}
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-3 text-center text-[10px] text-[#6E665F]">
+                <div className="p-2.5 rounded-xl bg-[#F5F2EB]/70 border border-[#E6DED1]/70 flex items-center justify-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-[#775a00]">sync</span>
+                  <span className="font-semibold text-[#1A1817]">Mismo Olor 1:1</span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-[#F5F2EB]/60 border border-[#E6DED1]/60 flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined text-[16px] text-[#775a00]">local_shipping</span>
-                  <span className="font-medium">Envío de Prestige</span>
+                <div className="p-2.5 rounded-xl bg-[#F5F2EB]/70 border border-[#E6DED1]/70 flex items-center justify-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-[#775a00]">schedule</span>
+                  <span className="font-semibold text-[#1A1817]">Fijación +8-12h</span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-[#F5F2EB]/60 border border-[#E6DED1]/60 flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined text-[16px] text-[#775a00]">card_giftcard</span>
-                  <span className="font-medium">Muestra Incluida</span>
+                <div className="p-2.5 rounded-xl bg-[#F5F2EB]/70 border border-[#E6DED1]/70 flex items-center justify-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-[#775a00]">vital_signs</span>
+                  <span className="font-semibold text-[#1A1817]">{perfume.format.split('•')[0].trim()} Íntegros</span>
                 </div>
               </div>
             </div>
