@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { PerfumeRepository } from '../../repositories/perfumeRepository';
 import { Perfume } from '../../types/perfume';
+import { getFragranticaAccordColor } from '../../services/geminiService';
+import { WhenToWearCard } from '../common/WhenToWearCard';
 
 interface ProductDetailViewProps {
   onAddToCart: (perfume: Perfume, quantity?: number) => void;
@@ -10,6 +12,7 @@ interface ProductDetailViewProps {
 export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCart }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [quantity, setQuantity] = useState(1);
   const [addedToast, setAddedToast] = useState(false);
@@ -51,6 +54,16 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
     .filter((p) => p.id !== perfume.id && (p.house === perfume.house || p.family === perfume.family))
     .slice(0, 3);
 
+  // Sibling format detection (e.g. 50ml vs 100ml for the exact same fragrance)
+  const cleanName = (perfume.name || '').trim().toLowerCase();
+  const cleanHouse = (perfume.house || '').trim().toLowerCase();
+  const siblingPerfume = allPerfumes.find(
+    (p) =>
+      p.id !== perfume.id &&
+      (p.name || '').trim().toLowerCase() === cleanName &&
+      (p.house || '').trim().toLowerCase() === cleanHouse
+  );
+
   const handleAdd = () => {
     for (let i = 0; i < quantity; i++) {
       onAddToCart(perfume);
@@ -66,20 +79,16 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
     return 'para Hombres';
   };
 
-  // Default accords fallback if accords not specified
-  const accords = perfume.accords || [
-    { name: perfume.family, percentage: 95 },
-    { name: 'Atalcado / Suave', percentage: 80 },
-    { name: 'Cálido Especiado', percentage: 65 },
-    { name: 'Ámbar Noble', percentage: 50 },
-  ];
+  // Real accords only - never invent dummy accords
+  const accords = perfume.accords && perfume.accords.length > 0 ? perfume.accords : [];
 
-  // Notes pyramid
-  const notes = perfume.notes || {
-    top: ['Bergamota de Calabria', 'Pimienta rosa', 'Cítricos frescos'],
-    heart: ['Pétalos de Jazmín', 'Rosa de Grasse', 'Flor de azahar'],
-    base: ['Vainilla Bourbon', 'Sándalo de Mysore', 'Ámbar noble'],
-  };
+  // Notes pyramid - only real notes
+  const notes = perfume.notes || { top: [], heart: [], base: [] };
+  const hasNotes = Boolean(
+    (notes.top && notes.top.length > 0) ||
+    (notes.heart && notes.heart.length > 0) ||
+    (notes.base && notes.base.length > 0)
+  );
 
   return (
     <div className="w-full bg-[#fbf9f5] min-h-screen pt-4 sm:pt-6 pb-20">
@@ -95,42 +104,43 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
 
       <div className="max-w-[1440px] mx-auto px-6 sm:px-8 md:px-10 lg:px-12">
         <div className="pt-1 pb-4 mb-5 border-b border-[#E6DED1]/70">
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#6E665F]">
-              <nav className="flex items-center gap-2 flex-wrap">
-                <Link to="/" className="hover:text-[#775a00] transition-colors">
-                  Boutique
-                </Link>
-                <span className="text-[#E6DED1]">/</span>
-                <Link to="/collection" className="hover:text-[#775a00] transition-colors">
-                  Colección
-                </Link>
-                <span className="text-[#E6DED1]">/</span>
-                <span className="text-[#B8860B] font-semibold">{perfume.house}</span>
-                <span className="text-[#E6DED1]">/</span>
-                <span className="text-[#1A1817] font-bold font-serif">{perfume.name}</span>
-              </nav>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#6E665F]">
+            <nav className="flex items-center gap-2 flex-wrap">
+              <Link to="/" className="hover:text-[#775a00] transition-colors">
+                Boutique
+              </Link>
+              <span className="text-[#E6DED1]">/</span>
+              <Link to="/collection" className="hover:text-[#775a00] transition-colors">
+                Colección
+              </Link>
+              <span className="text-[#E6DED1]">/</span>
+              <span className="text-[#B8860B] font-semibold">{perfume.house}</span>
+              <span className="text-[#E6DED1]">/</span>
+              <span className="text-[#1A1817] font-bold font-serif">{perfume.name}</span>
+            </nav>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {(location.state as any)?.fromAdmin && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/inventory', { state: { editPerfumeId: perfume.id } })}
+                  className="inline-flex items-center gap-1.5 text-xs text-[#6E665F] hover:text-[#1A1817] font-medium transition-colors bg-white hover:bg-[#FAF8F5] px-3 py-1.5 rounded-lg border border-[#E6DED1] hover:border-[#c59b27] cursor-pointer shadow-2xs"
+                  title={`Editar datos de ${perfume.name}`}
+                >
+                  <span className="material-symbols-outlined text-[15px] text-[#775a00]">edit</span>
+                  <span>Editar</span>
+                </button>
+              )}
 
               <button
                 onClick={() => navigate('/collection')}
-                className="inline-flex items-center gap-1.5 text-xs text-[#775a00] hover:text-[#B8860B] font-semibold transition-colors group cursor-pointer self-start sm:self-auto"
+                className="inline-flex items-center gap-1 text-xs text-[#775a00] hover:text-[#B8860B] font-semibold transition-colors group cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px] group-hover:-translate-x-1 transition-transform">
+                <span className="material-symbols-outlined text-[16px] group-hover:-translate-x-1 transition-transform">
                   arrow_back
                 </span>
                 <span>Volver al Catálogo</span>
               </button>
-            </div>
-
-            {/* Structural Title Banner */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-0.5">
-              <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1A1817] leading-tight flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span>{perfume.name}</span>
-                <span className="font-normal text-[#775a00]">{perfume.house}</span>
-                <span className="font-sans text-xs sm:text-sm font-medium text-[#2563EB] bg-[#EFF6FF] px-3 py-0.5 rounded-full border border-[#BFDBFE] inline-block align-middle">
-                  {getGenderText(perfume.gender)}
-                </span>
-              </h1>
             </div>
           </div>
         </div>
@@ -139,7 +149,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
           {/* Left Column: Clean Full-Space Bottle Showcase (Ocupa solo el espacio necesario para la imagen) */}
           <div className="w-full lg:w-auto lg:flex-shrink-0 lg:sticky lg:top-24 self-start flex justify-center">
-            <div className="relative w-full aspect-square max-h-[calc(100vh-140px)] max-w-[calc(100vh-140px)] sm:w-[420px] md:w-[460px] lg:w-[clamp(340px,calc(100vh-140px),460px)] rounded-3xl overflow-hidden border border-[#E6DED1]/90 shadow-md bg-[#F5F2EB] group transition-all">
+            <div className="relative w-full aspect-square max-h-[calc(100vh-140px)] max-w-[calc(100vh-140px)] sm:w-[420px] md:w-[460px] lg:w-[clamp(340px,calc(100vh-140px),460px)] rounded-3xl overflow-hidden border border-[#E6DED1]/90 shadow-md bg-white group transition-all">
               {/* Full Showcase Image occupying complete container (Limpia sin badges encima) */}
               <img
                 src={imgUrl || perfume.imageUrl}
@@ -156,68 +166,115 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
           </div>
 
           {/* Right Column: Acordes Principales + Details (Ocupa todo el resto del espacio) */}
-          <div className="flex-1 w-full min-w-0 bg-white rounded-3xl border border-[#E6DED1]/90 shadow-md p-6 sm:p-10 lg:p-12 flex flex-col justify-between space-y-8">
+          <div className="flex-1 w-full min-w-0 bg-white rounded-3xl border border-[#E6DED1]/90 shadow-md p-6 sm:p-8 lg:p-8 flex flex-col justify-between space-y-8">
             <div className="space-y-6">
-              {/* Refined Luxury Olfactory Header */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-[#E6DED1]/60">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#775a00] bg-[#F5F2EB] px-3.5 py-1.5 rounded-full border border-[#E6DED1] shadow-2xs">
-                    <span className="material-symbols-outlined text-[15px]">spa</span>
-                    <span>Familia {perfume.family}</span>
+              {/* Title & Refined Luxury Olfactory Header: Título a la derecha arriba de la familia */}
+              <div className="space-y-3.5 border-b border-[#E6DED1]/60">
+                <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1A1817] leading-tight flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <span>{perfume.name}</span>
+                  <span className="font-normal text-[#775a00]">{perfume.house}</span>
+                  <span className="font-sans text-xs sm:text-sm font-medium text-[#2563EB] bg-[#EFF6FF] px-3 py-0.5 rounded-full border border-[#BFDBFE] inline-block align-middle">
+                    {getGenderText(perfume.gender)}
                   </span>
+                </h1>
 
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6E665F] bg-[#FAF8F5] px-3 py-1.5 rounded-full border border-[#E6DED1]/70">
-                    <span className="material-symbols-outlined text-[14px] text-[#B8860B]">verified</span>
-                    <span>Autenticidad Garantizada</span>
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#775a00] bg-[#F5F2EB] px-3.5 py-1.5 rounded-full border border-[#E6DED1] shadow-2xs">
+                      <span className="material-symbols-outlined text-[15px]">spa</span>
+                      <span>Familia {perfume.family}</span>
+                    </span>
+
+                    {/* Concentration Badge (Eau de Parfum, Extrait, EDT, etc.) */}
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1A1817] bg-[#F5F2EB] px-3.5 py-1.5 rounded-full border border-[#E6DED1] shadow-2xs">
+                      <span className="material-symbols-outlined text-[15px] text-[#775a00]">water_drop</span>
+                      <span>
+                        {perfume.concentration ||
+                          (perfume.format?.includes('•')
+                            ? perfume.format.split('•')[1].trim()
+                            : perfume.format?.includes('Extrait')
+                            ? 'Extrait de Parfum'
+                            : perfume.format?.includes('EDT') || perfume.format?.includes('Toilette')
+                            ? 'Eau de Toilette'
+                            : perfume.format?.includes('Elixir')
+                            ? 'Elixir'
+                            : 'Eau de Parfum')}
+                      </span>
+                    </span>
+
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6E665F] bg-[#FAF8F5] px-3 py-1.5 rounded-full border border-[#E6DED1]/70">
+                      <span className="material-symbols-outlined text-[14px] text-[#B8860B]">verified</span>
+                      <span>Autenticidad Garantizada</span>
+                    </span>
+                  </div>
+
+                  <span className="text-xs text-[#6E665F] font-serif italic">
+                    {perfume.subtitle && !perfume.subtitle.toLowerCase().includes(perfume.format.toLowerCase())
+                      ? perfume.subtitle
+                      : 'Edición Especial Custodiada'}
                   </span>
                 </div>
-
-                <span className="text-xs text-[#6E665F] font-serif italic">
-                  {perfume.subtitle && !perfume.subtitle.toLowerCase().includes(perfume.format.toLowerCase())
-                    ? perfume.subtitle
-                    : 'Edición Especial Custodiada'}
-                </span>
               </div>
 
               {/* ACORDES PRINCIPALES (BAR CHARTS EN ESTILO ALURA) */}
-              <div className="space-y-3 bg-[#FAF8F5] p-5 rounded-2xl border border-[#E6DED1]/80 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-label-sm text-xs uppercase tracking-[0.2em] text-[#775a00] font-bold flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[16px]">bar_chart</span>
-                    <span>Acordes Principales</span>
-                  </h3>
-                  <span className="text-[10px] text-[#6E665F] font-semibold uppercase">Intensidad Sensorial</span>
-                </div>
+              {accords.length > 0 && (
+                <div className="space-y-3 bg-[#FAF8F5] p-5 rounded-2xl border border-[#E6DED1]/80 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-label-sm text-xs uppercase tracking-[0.2em] text-[#775a00] font-bold flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px]">bar_chart</span>
+                      <span>Acordes Principales</span>
+                    </h3>
+                    <span className="text-[10px] text-[#6E665F] font-semibold uppercase">Intensidad Sensorial</span>
+                  </div>
 
-                <div className="space-y-2.5 pt-1">
-                  {accords.map((accord, idx) => {
-                    // Golden gradient bar style
-                    const barGradients = [
-                      'from-[#775a00] to-[#B8860B]',
-                      'from-[#8C6B1B] to-[#C59B27]',
-                      'from-[#A37B24] to-[#D4AF37]',
-                      'from-[#B8860B] to-[#E6C665]',
-                      'from-[#6E665F] to-[#998F84]',
-                    ];
-                    const grad = barGradients[idx % barGradients.length];
+                  <div className="space-y-1.5 pt-2">
+                    {accords.map((accord) => {
+                      const color = accord.color || getFragranticaAccordColor(accord.name);
+                      const isLightColor =
+                        color === '#FDD835' ||
+                        color === '#FBC02D' ||
+                        color === '#C7A75C' ||
+                        color === '#80CBC4' ||
+                        color === '#80DEEA' ||
+                        color === '#81D4FA' ||
+                        color === '#B39DDB' ||
+                        color === '#D4C5A9' ||
+                        color === '#D7CCC8';
+                      const textColor = isLightColor ? '#1A1817' : '#FFFFFF';
 
-                    return (
-                      <div key={accord.name} className="space-y-1">
-                        <div className="flex justify-between text-xs font-medium">
-                          <span className="text-[#1A1817] font-semibold capitalize">{accord.name}</span>
-                          <span className="font-mono text-[#6E665F] text-[11px]">{accord.percentage}%</span>
-                        </div>
-                        <div className="w-full h-3 bg-[#E6DED1]/50 rounded-full overflow-hidden p-0.5 border border-[#E6DED1]">
+                      return (
+                        <div key={accord.name} className="flex items-center group">
                           <div
-                            className={`h-full rounded-full bg-gradient-to-r ${grad} transition-all duration-1000 ease-out shadow-xs`}
-                            style={{ width: `${accord.percentage}%` }}
-                          />
+                            className="h-7 sm:h-7.5 flex items-center justify-between px-3.5 transition-all duration-500 ease-out shadow-xs rounded-r-md hover:brightness-110 cursor-default"
+                            style={{
+                              width: `${Math.max(34, Math.min(100, accord.percentage))}%`,
+                              backgroundColor: color,
+                            }}
+                          >
+                            <span
+                              className="text-xs font-bold tracking-wide whitespace-nowrap capitalize drop-shadow-xs"
+                              style={{ color: textColor }}
+                            >
+                              {accord.name}
+                            </span>
+                            <span
+                              className="font-mono text-[10px] font-bold opacity-90 pl-2"
+                              style={{ color: textColor }}
+                            >
+                              {accord.percentage}%
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* CUÁNDO USARLO (TEMPORALIDAD & OCASIÓN SEGÚN FRAGRANTICA) */}
+              {perfume.whenToWear && perfume.whenToWear.length > 0 && (
+                <WhenToWearCard items={perfume.whenToWear} variant="dark" />
+              )}
 
               {/* Dual Hero: Capacidad & Precio con la misma jerarquía de importancia */}
               <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#F5F2EB] to-[#FAF8F5] border border-[#E6DED1] shadow-xs space-y-4">
@@ -259,25 +316,30 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
                   </div>
                 </div>
 
-                {/* Stock status & Alura replica highlight */}
+                {/* Alura replica highlight */}
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-0.5">
                   <div className="flex items-center gap-1.5 text-[#4e4635] text-[11px] font-medium">
                     <span className="material-symbols-outlined text-[15px] text-[#B8860B]">verified</span>
                     <span>Inspiración Premium 1:1 • Mismo Olor</span>
                   </div>
-
-                  {perfume.stock > 0 ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F0F5EE] text-[#2D5A27] text-xs font-bold border border-[#2D5A27]/20 shadow-2xs">
-                      <span className="w-2 h-2 rounded-full bg-[#2D5A27] animate-pulse"></span>
-                      <span>Disponible</span>
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF0EF] text-[#8A2E2B] text-xs font-bold border border-[#8A2E2B]/20">
-                      <span className="w-2 h-2 rounded-full bg-[#8A2E2B]"></span>
-                      <span>Preguntar por existencias</span>
-                    </span>
-                  )}
                 </div>
+
+                {/* Si existe el otro tamaño en vitrina, enlace sutil y elegante */}
+                {siblingPerfume && (
+                  <div className="pt-3 border-t border-[#E6DED1]/70 flex items-center justify-between text-xs">
+                    <span className="text-[#6E665F]">
+                      También disponible en {siblingPerfume.format.split('•')[0].trim()}:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/perfume/${siblingPerfume.id}`)}
+                      className="inline-flex items-center gap-1 font-semibold text-[#775a00] hover:text-[#B8860B] transition-colors cursor-pointer"
+                    >
+                      <span>Ver versión ({siblingPerfume.price.toFixed(2)} USD)</span>
+                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Fórmula Alura: Mismo Olor • Mayor Duración • Mucho Más Barato */}
@@ -353,91 +415,101 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
               </div>
 
               {/* Architectural Olfactory Pyramid (Pirámide Olfativa) */}
-              <div className="pt-6 border-t border-[#E6DED1]/70 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-label-sm text-xs uppercase tracking-[0.2em] text-[#775a00] font-bold flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">local_florist</span>
-                    <span>Pirámide Olfativa</span>
-                  </h3>
+              {hasNotes && (
+                <div className="pt-6 border-t border-[#E6DED1]/70 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-label-sm text-xs uppercase tracking-[0.2em] text-[#775a00] font-bold flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">local_florist</span>
+                      <span>Pirámide Olfativa</span>
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Top Notes */}
+                    {notes.top && notes.top.length > 0 && (
+                      <div className="p-3.5 rounded-xl bg-[#F5F2EB]/80 border border-[#E6DED1] flex flex-col justify-between">
+                        <div className="flex items-center gap-1.5 text-[#B8860B] mb-2">
+                          <span className="material-symbols-outlined text-[16px]">wb_sunny</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Notas de Salida</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {notes.top.map((note) => (
+                            <span key={note} className="bg-white text-[#2C2826] text-[10px] px-2 py-0.5 rounded-md font-medium border border-[#E6DED1]/60">
+                              {note}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Heart Notes */}
+                    {notes.heart && notes.heart.length > 0 && (
+                      <div className="p-3.5 rounded-xl bg-[#F5F2EB]/80 border border-[#E6DED1] flex flex-col justify-between">
+                        <div className="flex items-center gap-1.5 text-[#775a00] mb-2">
+                          <span className="material-symbols-outlined text-[16px]">favorite</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Corazón Sensorial</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {notes.heart.map((note) => (
+                            <span key={note} className="bg-white text-[#2C2826] text-[10px] px-2 py-0.5 rounded-md font-medium border border-[#E6DED1]/60">
+                              {note}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Base Notes */}
+                    {notes.base && notes.base.length > 0 && (
+                      <div className="p-3.5 rounded-xl bg-[#F5F2EB]/80 border border-[#E6DED1] flex flex-col justify-between">
+                        <div className="flex items-center gap-1.5 text-[#4e4635] mb-2">
+                          <span className="material-symbols-outlined text-[16px]">park</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Fondo &amp; Estela</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {notes.base.map((note) => (
+                            <span key={note} className="bg-white text-[#2C2826] text-[10px] px-2 py-0.5 rounded-md font-medium border border-[#E6DED1]/60">
+                              {note}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* Top Notes */}
-                  <div className="p-3.5 rounded-xl bg-[#F5F2EB]/80 border border-[#E6DED1] flex flex-col justify-between">
-                    <div className="flex items-center gap-1.5 text-[#B8860B] mb-2">
-                      <span className="material-symbols-outlined text-[16px]">wb_sunny</span>
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Notas de Salida</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {notes.top.map((note) => (
-                        <span key={note} className="bg-white text-[#2C2826] text-[10px] px-2 py-0.5 rounded-md font-medium border border-[#E6DED1]/60">
-                          {note}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Heart Notes */}
-                  <div className="p-3.5 rounded-xl bg-[#F5F2EB]/80 border border-[#E6DED1] flex flex-col justify-between">
-                    <div className="flex items-center gap-1.5 text-[#775a00] mb-2">
-                      <span className="material-symbols-outlined text-[16px]">favorite</span>
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Corazón Sensorial</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {notes.heart.map((note) => (
-                        <span key={note} className="bg-white text-[#2C2826] text-[10px] px-2 py-0.5 rounded-md font-medium border border-[#E6DED1]/60">
-                          {note}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Base Notes */}
-                  <div className="p-3.5 rounded-xl bg-[#F5F2EB]/80 border border-[#E6DED1] flex flex-col justify-between">
-                    <div className="flex items-center gap-1.5 text-[#4e4635] mb-2">
-                      <span className="material-symbols-outlined text-[16px]">park</span>
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Fondo &amp; Estela</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {notes.base.map((note) => (
-                        <span key={note} className="bg-white text-[#2C2826] text-[10px] px-2 py-0.5 rounded-md font-medium border border-[#E6DED1]/60">
-                          {note}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Order Controls & Actions */}
             <div className="pt-6 border-t border-[#E6DED1] space-y-5">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                {/* Quantity selector */}
-                <div className="flex items-center justify-between sm:justify-start border border-[#E6DED1] rounded-xl overflow-hidden bg-[#F5F2EB] shadow-xs px-2 sm:px-0">
-                  <span className="sm:hidden text-xs font-semibold text-[#6E665F] pl-2">Cantidad:</span>
-                  <div className="flex items-center">
-                    <button
-                      disabled={quantity <= 1}
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="w-10 h-11 text-[#1A1817] hover:bg-[#eae1d4] disabled:opacity-30 transition-colors font-bold text-base cursor-pointer flex items-center justify-center"
-                    >
-                      -
-                    </button>
-                    <span className="w-10 text-center font-mono font-bold text-base text-[#1A1817]">
-                      {quantity}
-                    </span>
-                    <button
-                      disabled={quantity >= perfume.stock}
-                      onClick={() => setQuantity((q) => Math.min(perfume.stock, q + 1))}
-                      className="w-10 h-11 text-[#1A1817] hover:bg-[#eae1d4] disabled:opacity-30 transition-colors font-bold text-base cursor-pointer flex items-center justify-center"
-                    >
-                      +
-                    </button>
+                {/* Quantity selector (solo si hay stock disponible) */}
+                {perfume.stock > 0 && (
+                  <div className="flex items-center justify-between sm:justify-start border border-[#E6DED1] rounded-xl overflow-hidden bg-[#F5F2EB] shadow-xs px-2 sm:px-0">
+                    <span className="sm:hidden text-xs font-semibold text-[#6E665F] pl-2">Cantidad:</span>
+                    <div className="flex items-center">
+                      <button
+                        disabled={quantity <= 1}
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        className="w-10 h-11 text-[#1A1817] hover:bg-[#eae1d4] disabled:opacity-30 transition-colors font-bold text-base cursor-pointer flex items-center justify-center"
+                      >
+                        -
+                      </button>
+                      <span className="w-10 text-center font-mono font-bold text-base text-[#1A1817]">
+                        {quantity}
+                      </span>
+                      <button
+                        disabled={quantity >= perfume.stock}
+                        onClick={() => setQuantity((q) => Math.min(perfume.stock, q + 1))}
+                        className="w-10 h-11 text-[#1A1817] hover:bg-[#eae1d4] disabled:opacity-30 transition-colors font-bold text-base cursor-pointer flex items-center justify-center"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Add to Cart CTA */}
+                {/* Add to Cart CTA or Consultar Disponibilidad */}
                 {perfume.stock > 0 ? (
                   <button
                     onClick={handleAdd}
@@ -449,13 +521,13 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
                 ) : (
                   <button
                     onClick={() => {
-                      const msg = encodeURIComponent(`Hola, quisiera preguntar por existencias del perfume ${perfume.name} (${perfume.house})`);
+                      const msg = encodeURIComponent(`Hola Alura Parfums, quisiera consultar la disponibilidad del perfume ${perfume.name} (${perfume.house}).`);
                       window.open(`https://wa.me/?text=${msg}`, '_blank');
                     }}
-                    className="flex-1 w-full bg-[#F5F2EB] hover:bg-[#eae1d4] text-[#775a00] border border-[#E6DED1] py-3.5 sm:py-4 px-6 rounded-xl font-label-md text-xs uppercase tracking-wider font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                    className="flex-1 w-full bg-[#FAF8F5] hover:bg-[#F5F2EB] text-[#775a00] border-2 border-[#c59b27]/60 py-3.5 sm:py-4 px-6 rounded-xl font-label-md text-xs uppercase tracking-wider font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99]"
                   >
-                    <span className="material-symbols-outlined text-[20px]">chat</span>
-                    <span>Preguntar por existencias</span>
+                    <span className="material-symbols-outlined text-[22px] text-[#B8860B]">chat</span>
+                    <span>Consultar Disponibilidad</span>
                   </button>
                 )}
               </div>

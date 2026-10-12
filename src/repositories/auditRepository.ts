@@ -1,23 +1,31 @@
 import { WeeklyAuditRecord, CashDrawerSummary } from '../types/audit';
 import { LocalStorageAdapter, supabase } from '../db/supabaseClient';
 import { SalesRepository } from './salesRepository';
+import { SupplierRepository } from './supplierRepository';
 
 export class AuditRepository {
   private static STORAGE_KEY_DRAWER = 'cash_drawer_summary';
   private static STORAGE_KEY_WEEKLY = 'weekly_audit_records';
 
   /**
-   * Calculates live expected drawer totals dynamically from real POS transactions and abonos.
+   * Calculates live expected drawer totals dynamically from real POS transactions, abonos, and supplier expenses.
    */
   static calculateLiveExpected(): CashDrawerSummary {
     const sales = SalesRepository.getAll();
     const abonos = SalesRepository.getAbonos();
+    const supplierPayments = SupplierRepository.getPayments();
 
     let cashPhysical = 0;
     let posCards = 0;
     let zelleTransfer = 0;
 
+    // 1. Ingresos por ventas de perfumes (despachos de mostrador)
     for (const s of sales) {
+      // Si el registro corresponde a un abono asentado en el historial de ventas, lo omitimos aquí para no duplicarlo con abonos_history
+      if (s.id.startsWith('#AB-') || s.fragranceName.toLowerCase().includes('abono')) {
+        continue;
+      }
+
       if (s.paymentMethod === 'cash') {
         cashPhysical += s.total;
       } else if (s.paymentMethod === 'pos') {
@@ -25,11 +33,13 @@ export class AuditRepository {
       } else if (s.paymentMethod === 'transfer') {
         zelleTransfer += s.total;
       } else if (s.paymentMethod === 'credit50') {
-        // First 50% instalment received
+        // En cuota inicial 50%, sólo ingresa a caja la primera mitad (el restante 50% es por cobrar)
         cashPhysical += s.total / 2;
       }
+      // Si fue credit100 (100% a crédito), ingresó $0.00 hoy
     }
 
+    // 2. Ingresos por abonos de clientes (cobro de créditos y liquidaciones)
     for (const a of abonos) {
       if (a.paymentMethod === 'cash') {
         cashPhysical += a.amount;
@@ -40,13 +50,29 @@ export class AuditRepository {
       }
     }
 
+    // 3. Egresos / Desembolsos pagados a empresas proveedoras
+    for (const p of supplierPayments) {
+      if (p.paymentMethod === 'cash') {
+        cashPhysical -= p.amount;
+      } else if (p.paymentMethod === 'pos') {
+        posCards -= p.amount;
+      } else if (p.paymentMethod === 'transfer') {
+        zelleTransfer -= p.amount;
+      }
+    }
+
+    // Evitar decimales flotantes y valores negativos menores a cero
+    cashPhysical = Number(Math.max(0, cashPhysical).toFixed(2));
+    posCards = Number(Math.max(0, posCards).toFixed(2));
+    zelleTransfer = Number(Math.max(0, zelleTransfer).toFixed(2));
+
     const expectedTotal = Number((cashPhysical + posCards + zelleTransfer).toFixed(2));
 
     return {
       expectedTotal,
-      cashPhysical: Number(cashPhysical.toFixed(2)),
-      zelleTransfer: Number(zelleTransfer.toFixed(2)),
-      posCards: Number(posCards.toFixed(2)),
+      cashPhysical,
+      zelleTransfer,
+      posCards,
       countedTotal: expectedTotal,
       difference: 0,
       auditorName: 'Directora Atelier',
@@ -56,9 +82,22 @@ export class AuditRepository {
   }
 
   static getDrawerSummary(): CashDrawerSummary {
+    const live = this.calculateLiveExpected();
     const cached = LocalStorageAdapter.get<CashDrawerSummary | null>(this.STORAGE_KEY_DRAWER, null);
-    if (cached) return cached;
-    return this.calculateLiveExpected();
+
+    if (cached && typeof cached.countedTotal === 'number' && cached.closureFolio && cached.difference !== 0) {
+      const diff = Number((cached.countedTotal - live.expectedTotal).toFixed(2));
+      return {
+        ...live,
+        countedTotal: cached.countedTotal,
+        difference: diff,
+        auditorName: cached.auditorName || live.auditorName,
+        closureFolio: cached.closureFolio || live.closureFolio,
+        closingNotes: cached.closingNotes || live.closingNotes,
+      };
+    }
+
+    return live;
   }
 
   static async fetchDrawerFromSupabase(): Promise<CashDrawerSummary> {
@@ -69,17 +108,19 @@ export class AuditRepository {
         .eq('id', 'current')
         .maybeSingle();
 
+      const live = this.calculateLiveExpected();
+
       if (error || !data) return this.getDrawerSummary();
 
+      const countedTotal = typeof data.counted_total === 'number' ? Number(data.counted_total) : live.expectedTotal;
+      const difference = Number((countedTotal - live.expectedTotal).toFixed(2));
+
       const mapped: CashDrawerSummary = {
-        expectedTotal: Number(data.expected_total),
-        cashPhysical: Number(data.cash_physical),
-        zelleTransfer: Number(data.zelle_transfer),
-        posCards: Number(data.pos_cards),
-        countedTotal: Number(data.counted_total),
-        difference: Number(data.difference),
-        auditorName: data.auditor_name || 'Directora Atelier',
-        closureFolio: data.closure_folio || `CIERRE-#${Date.now().toString().slice(-4)}`,
+        ...live,
+        countedTotal,
+        difference,
+        auditorName: data.auditor_name || live.auditorName,
+        closureFolio: data.closure_folio || live.closureFolio,
         closingNotes: data.closing_notes || '',
       };
 

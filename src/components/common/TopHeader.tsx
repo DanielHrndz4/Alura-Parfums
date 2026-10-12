@@ -25,7 +25,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <span className="material-symbols-outlined text-[20px]">menu</span>
         </button>
 
-        <div className="flex items-center gap-2 text-xs">
+        {/* <div className="flex items-center gap-2 text-xs">
           <span className="font-serif font-bold text-[#1A1817] tracking-wider uppercase text-[11px] sm:text-xs">
             Alura Parfums
           </span>
@@ -33,7 +33,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <span className="text-[#6E665F] font-mono text-[9px] sm:text-[10px] uppercase tracking-widest hidden sm:inline">
             Atelier Privé Place Vendôme
           </span>
-        </div>
+        </div> */}
       </div>
 
       {/* Right: Quick actions & Profile */}

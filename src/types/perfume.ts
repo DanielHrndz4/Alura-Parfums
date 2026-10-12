@@ -8,6 +8,16 @@ export type OlfactoryFamily =
 
 export type GenderStyle = 'fem' | 'masc' | 'unisex';
 
+export interface WhenToWearItem {
+  id: 'invierno' | 'primavera' | 'verano' | 'otoño' | 'día' | 'noche' | string;
+  name: string;
+  percentage: number; // 0 - 100
+  votes?: string; // e.g. "2k", "1.6k", "854", "1.7k", "703", "2k"
+  color: string;
+}
+
+export type WhenToWear = WhenToWearItem[];
+
 export interface Perfume {
   id: string;
   name: string;
@@ -28,10 +38,13 @@ export interface Perfume {
     top: string[];
     heart: string[];
     base: string[];
+    whenToWear?: WhenToWearItem[];
   };
   accords?: { name: string; percentage: number; color?: string }[];
+  whenToWear?: WhenToWearItem[];
   sampleStatusText?: string; // e.g. "Muestra Activa", "Solo Muestra", "1 en vitrina"
   isBestseller?: boolean;
+  concentration?: string; // e.g. "Eau de Parfum", "Extrait de Parfum", "Eau de Toilette", "Elixir"
 }
 
 export interface OlfactoryFamilyCategory {

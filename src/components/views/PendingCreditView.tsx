@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { SalesRepository } from '../../repositories/salesRepository';
 import { ClientProfile, AbonoTransaction } from '../../types/sale';
+import { RegisterClientModal } from '../common/RegisterClientModal';
+import { EditClientModal } from '../common/EditClientModal';
 
 export const PendingCreditView: React.FC = () => {
   const [clients, setClients] = useState<ClientProfile[]>(() => SalesRepository.getClients());
@@ -13,6 +15,11 @@ export const PendingCreditView: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'pos' | 'transfer'>('cash');
   const [referenceNote, setReferenceNote] = useState<string>('');
 
+  // Client filtering & Edit modal state
+  const [clientToEdit, setClientToEdit] = useState<ClientProfile | null>(null);
+  const [clientScopeFilter, setClientScopeFilter] = useState<'with-debt' | 'all' | 'settled'>('with-debt');
+  const [clientSearchQuery, setClientSearchQuery] = useState<string>('');
+
   // Filters state for Abonos History
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>('ALL');
@@ -21,40 +28,12 @@ export const PendingCreditView: React.FC = () => {
 
   // New Client Modal state
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientPhone, setNewClientPhone] = useState('');
-  const [newClientHouse, setNewClientHouse] = useState('Maison Alura');
-  const [newClientBalance, setNewClientBalance] = useState('0');
-  const [newClientNotes, setNewClientNotes] = useState('');
   const [clientToDelete, setClientToDelete] = useState<ClientProfile | null>(null);
+  const [abonoToDelete, setAbonoToDelete] = useState<AbonoTransaction | null>(null);
 
   const showNotify = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3500);
-  };
-
-  const handleCreateClient = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newClientName.trim()) return;
-
-    const created = SalesRepository.addClient({
-      name: newClientName,
-      phone: newClientPhone,
-      favoriteHouse: newClientHouse,
-      initialBalance: parseFloat(newClientBalance) || 0,
-      notes: newClientNotes,
-    });
-
-    setClients(SalesRepository.getClients());
-    showNotify(`Cliente "${created.name}" registrado exitosamente.`);
-    setIsAddClientModalOpen(false);
-
-    // Reset
-    setNewClientName('');
-    setNewClientPhone('');
-    setNewClientHouse('Maison Alura');
-    setNewClientBalance('0');
-    setNewClientNotes('');
   };
 
   const confirmDeleteClient = () => {
@@ -63,6 +42,21 @@ export const PendingCreditView: React.FC = () => {
     setClients(SalesRepository.getClients());
     showNotify(`Cliente "${clientToDelete.name}" eliminado del registro.`);
     setClientToDelete(null);
+  };
+
+  const confirmDeleteAbono = () => {
+    if (!abonoToDelete) return;
+    const res = SalesRepository.deleteAbono(abonoToDelete.id);
+    setAbonosHistory(SalesRepository.getAbonos());
+    setClients(SalesRepository.getClients());
+    if (res?.client) {
+      showNotify(
+        `Abono "${abonoToDelete.id}" anulado. Se restauró el saldo pendiente de ${res.client.name} (+$${res.revertedAmount.toFixed(2)} USD).`
+      );
+    } else {
+      showNotify(`Abono "${abonoToDelete.id}" eliminado del historial.`);
+    }
+    setAbonoToDelete(null);
   };
 
   const handleOpenAbonoModal = (client: ClientProfile) => {
@@ -112,6 +106,76 @@ export const PendingCreditView: React.FC = () => {
   };
 
   const totalCredits = clients.reduce((acc, c) => acc + c.pendingBalance, 0);
+
+  const clientsWithDebt = useMemo(
+    () => clients.filter((c) => c.pendingBalance > 0),
+    [clients]
+  );
+  const clientsSettled = useMemo(
+    () => clients.filter((c) => c.pendingBalance <= 0),
+    [clients]
+  );
+
+  const displayedClients = useMemo(() => {
+    return clients.filter((c) => {
+      // 1. Scope filter
+      if (clientScopeFilter === 'with-debt' && c.pendingBalance <= 0) return false;
+      if (clientScopeFilter === 'settled' && c.pendingBalance > 0) return false;
+
+      // 2. Search query
+      if (clientSearchQuery.trim()) {
+        const q = clientSearchQuery.toLowerCase().trim();
+        const matchesName = (c.name || '').toLowerCase().includes(q);
+        const matchesCode = (c.code || '').toLowerCase().includes(q);
+        const matchesPhone = (c.phone || '').toLowerCase().includes(q);
+        const matchesHouse = (c.favoriteHouse || '').toLowerCase().includes(q);
+        if (!matchesName && !matchesCode && !matchesPhone && !matchesHouse) return false;
+      }
+
+      return true;
+    });
+  }, [clients, clientScopeFilter, clientSearchQuery]);
+
+  // Historial de ventas para correlacionar perfumes adquiridos
+  const salesHistory = useMemo(() => SalesRepository.getAll(), [clients, abonosHistory]);
+
+  const getClientPerfumeInfo = (client: ClientProfile) => {
+    // 1. Directamente guardado en el perfil del cliente
+    if (client.lastFragrance) {
+      return {
+        fragrance: client.lastFragrance,
+        format: client.lastFormat || '100ml',
+        house: client.favoriteHouse,
+      };
+    }
+
+    // 2. Buscar en el historial de ventas por nombre de cliente
+    const cleanClientName = (client.name || '').toLowerCase().replace(/[\(\)-]/g, ' ').replace(/\s+/g, ' ').trim();
+    const matchingSale = salesHistory.find((s) => {
+      const saleClient = (s.clientName || '').toLowerCase().replace(/[\(\)-]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!saleClient) return false;
+      if (saleClient === cleanClientName) return true;
+      if (cleanClientName && (saleClient.includes(cleanClientName) || cleanClientName.includes(saleClient))) return true;
+
+      const words = cleanClientName.split(' ');
+      if (words.length >= 2 && saleClient.includes(words[0]) && saleClient.includes(words[1])) return true;
+      return false;
+    });
+
+    if (matchingSale && matchingSale.fragranceName) {
+      return {
+        fragrance: matchingSale.fragranceName,
+        format: matchingSale.format || '100ml',
+        house: matchingSale.house || client.favoriteHouse,
+      };
+    }
+
+    return {
+      fragrance: undefined,
+      format: undefined,
+      house: client.favoriteHouse,
+    };
+  };
 
   // Filtered Abonos Logic
   const filteredAbonos = useMemo(() => {
@@ -206,64 +270,186 @@ export const PendingCreditView: React.FC = () => {
 
       {/* 1. Clients Table */}
       <div className="bg-white rounded-none shadow-xs border border-[#E6DED1] overflow-hidden mb-10">
-        <div className="p-4 bg-[#F5F2EB]/50 border-b border-[#E6DED1] flex justify-between items-center">
+        <div className="p-4 bg-[#F5F2EB]/50 border-b border-[#E6DED1] flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
-            <span className="font-title-md text-xs font-semibold text-[#1A1817] block">
-              Directorio de Clientes
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#c59b27] text-[18px]">account_balance_wallet</span>
+              <span className="font-title-md text-xs font-semibold text-[#1A1817] uppercase tracking-wider block">
+                Cuentas por Cobrar &amp; Clientes
+              </span>
+            </div>
             <span className="text-[11px] text-[#6E665F]">
-              Clientes registrados y cuentas activas en Alura Parfums
+              Control de saldos exigibles y administración de perfiles de clientes
             </span>
           </div>
-          <span className="text-xs text-[#6E665F] font-mono">Total Clientes: {clients.length}</span>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            {/* Buscador de cliente */}
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-[#6E665F]">
+                search
+              </span>
+              <input
+                type="text"
+                value={clientSearchQuery}
+                onChange={(e) => setClientSearchQuery(e.target.value)}
+                placeholder="Buscar cliente..."
+                className="bg-white pl-8 pr-7 py-1.5 border border-[#E6DED1] text-xs text-[#1A1817] outline-none focus:border-[#c59b27] w-full sm:w-48 placeholder:text-[#6E665F]"
+              />
+              {clientSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setClientSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#6E665F] hover:text-[#1A1817] cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[13px]">close</span>
+                </button>
+              )}
+            </div>
+
+            {/* Selector de ámbito */}
+            <div className="flex items-center gap-1 bg-[#FAF8F5] p-0.5 border border-[#E6DED1]">
+              <button
+                type="button"
+                onClick={() => setClientScopeFilter('with-debt')}
+                className={`px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                  clientScopeFilter === 'with-debt'
+                    ? 'bg-[#c59b27] text-[#1A1817] font-bold shadow-xs'
+                    : 'text-[#6E665F] hover:text-[#1A1817]'
+                }`}
+              >
+                Con Deuda ({clientsWithDebt.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setClientScopeFilter('all')}
+                className={`px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                  clientScopeFilter === 'all'
+                    ? 'bg-[#1A1817] text-white font-bold shadow-xs'
+                    : 'text-[#6E665F] hover:text-[#1A1817]'
+                }`}
+              >
+                Todos ({clients.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setClientScopeFilter('settled')}
+                className={`px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer ${
+                  clientScopeFilter === 'settled'
+                    ? 'bg-[#2D5A27] text-white font-bold shadow-xs'
+                    : 'text-[#6E665F] hover:text-[#1A1817]'
+                }`}
+              >
+                Al Día ({clientsSettled.length})
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[980px] border-collapse">
             <thead>
-              <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase">
-                <th className="py-3 px-4 font-semibold">Cliente</th>
-                <th className="py-3 px-4 font-semibold">Teléfono / WhatsApp</th>
-                <th className="py-3 px-4 font-semibold">Casa Preferida</th>
-                <th className="py-3 px-4 font-semibold">Último Movimiento</th>
-                <th className="py-3 px-4 text-right font-semibold">Saldo Pendiente</th>
-                <th className="py-3 px-4 text-center font-semibold">Acciones</th>
+              <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase text-[10px] tracking-wider">
+                <th className="py-4 px-5 font-semibold whitespace-nowrap">Cliente</th>
+                <th className="py-4 px-5 font-semibold whitespace-nowrap">Teléfono / WhatsApp</th>
+                <th className="py-4 px-5 font-semibold whitespace-nowrap">Perfume Comprado</th>
+                <th className="py-4 px-5 font-semibold whitespace-nowrap">Casa</th>
+                <th className="py-4 px-5 font-semibold whitespace-nowrap">Último Movimiento</th>
+                <th className="py-4 px-5 text-right font-semibold whitespace-nowrap">Saldo Pendiente</th>
+                <th className="py-4 px-5 text-center font-semibold whitespace-nowrap">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F5F2EB] text-[#2C2826]">
-              {clients.length === 0 ? (
+              {displayedClients.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 px-4 text-center text-[#6E665F]">
+                  <td colSpan={7} className="py-12 px-4 text-center text-[#6E665F]">
                     <span className="material-symbols-outlined text-4xl text-[#6E665F]/40 mb-2 block">
-                      group
+                      {clientScopeFilter === 'with-debt' ? 'task_alt' : 'group'}
                     </span>
-                    <p className="text-xs font-semibold text-[#1A1817]">No hay clientes registrados</p>
+                    <p className="text-xs font-semibold text-[#1A1817]">
+                      {clientScopeFilter === 'with-debt'
+                        ? '¡Excelente! No hay clientes con saldo pendiente por cobrar'
+                        : clientSearchQuery
+                        ? `No se encontraron clientes para "${clientSearchQuery}"`
+                        : 'No hay clientes registrados en esta categoría'}
+                    </p>
                     <p className="text-[11px] text-[#6E665F] mt-1">
-                      Usa el botón "+ Registrar Cliente" para agregar nuevos clientes a la boutique.
+                      {clientScopeFilter === 'with-debt'
+                        ? 'Todas las cuentas están al día o puedes ver "Todos los Clientes" en la pestaña superior.'
+                        : 'Usa el botón "+ Registrar Cliente" para agregar nuevos perfiles a la boutique.'}
                     </p>
                   </td>
                 </tr>
               ) : (
-                clients.map((client) => (
-                  <tr key={client.id} className="hover:bg-[#F5F2EB]/30 transition-colors">
-                    <td className="py-4 px-4 font-semibold text-[#1A1817]">
-                      {client.name}
-                      <span className="block text-[10px] text-[#6E665F] font-normal font-mono">{client.code}</span>
-                    </td>
-                    <td className="py-4 px-4 text-[#6E665F]">
-                      {client.phone ? (
-                        <span className="font-mono text-xs">{client.phone}</span>
-                      ) : (
-                        <span className="text-[#9C948A] italic text-[11px]">No registrado</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4">{client.favoriteHouse || 'Maison Alura'}</td>
-                    <td className="py-4 px-4 text-[#6E665F]">{client.lastPurchase || 'Reciente'}</td>
-                    <td className="py-4 px-4 text-right font-mono font-bold text-sm text-[#1A1817]">
-                      ${client.pendingBalance.toFixed(2)}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                displayedClients.map((client) => {
+                  const perfumeInfo = getClientPerfumeInfo(client);
+
+                  return (
+                    <tr key={client.id} className="hover:bg-[#F5F2EB]/30 transition-colors">
+                      <td className="py-4 px-5 font-semibold text-[#1A1817] whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <span>{client.name}</span>
+                          {client.tier && client.tier !== 'Cliente' && (
+                            <span className="px-1.5 py-0.2 bg-[#FAF8F5] border border-[#c59b27]/40 text-[#775a00] text-[9px] font-bold uppercase tracking-wider">
+                              {client.tier}
+                            </span>
+                          )}
+                        </div>
+                        <span className="block text-[10px] text-[#6E665F] font-normal font-mono">{client.code}</span>
+                      </td>
+                      <td className="py-4 px-5 text-[#6E665F] whitespace-nowrap">
+                        {client.phone ? (
+                          <span className="font-mono text-xs">{client.phone}</span>
+                        ) : (
+                          <span className="text-[#9C948A] italic text-[11px]">No registrado</span>
+                        )}
+                      </td>
+
+                      {/* Perfume Comprado */}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        {perfumeInfo.fragrance ? (
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-none bg-[#FAF8F5] border border-[#c59b27]/40 flex items-center justify-center shrink-0 shadow-2xs">
+                              <span className="material-symbols-outlined text-[#c59b27] text-[16px]">
+                                local_florist
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-bold text-[#1A1817] block text-xs">
+                                {perfumeInfo.fragrance}
+                              </span>
+                              {perfumeInfo.format && (
+                                <span className="text-[10px] text-[#775a00] font-mono font-medium block">
+                                  {perfumeInfo.format}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-[#6E665F]">
+                            <span className="material-symbols-outlined text-[16px] text-[#6E665F]/40">
+                              inventory_2
+                            </span>
+                            <span className="text-[11px] italic">
+                              {perfumeInfo.house ? `Frasco ${perfumeInfo.house}` : 'Sin especificar'}
+                            </span>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Casa */}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <span className="px-2 py-0.5 bg-[#FAF8F5] border border-[#E6DED1] text-[#775a00] font-semibold text-[11px]">
+                          {perfumeInfo.house || client.favoriteHouse || 'Maison Alura'}
+                        </span>
+                      </td>
+
+                      <td className="py-4 px-5 text-[#6E665F] whitespace-nowrap">{client.lastPurchase || 'Reciente'}</td>
+                      <td className="py-4 px-5 text-right font-mono font-bold text-sm whitespace-nowrap text-[#1A1817]">
+                        ${client.pendingBalance.toFixed(2)} USD
+                      </td>
+                    <td className="py-4 px-5 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         {client.pendingBalance > 0 ? (
                           <button
                             onClick={() => handleOpenAbonoModal(client)}
@@ -273,12 +459,23 @@ export const PendingCreditView: React.FC = () => {
                             Abonar
                           </button>
                         ) : (
-                          <span className="text-[#2D5A27] font-semibold inline-flex items-center gap-1 text-[11px]">
+                          <span className="text-[#2D5A27] font-semibold inline-flex items-center gap-1 text-[11px] px-2 py-1 bg-[#F0F5EE] border border-[#2D5A27]/20">
                             <span className="material-symbols-outlined text-[15px]">check_circle</span>
                             Al día
                           </span>
                         )}
 
+                        {/* Botón Modificar / Editar Cliente */}
+                        <button
+                          type="button"
+                          onClick={() => setClientToEdit(client)}
+                          className="w-7 h-7 rounded-none bg-white hover:bg-[#F5F2EB] text-[#775a00] border border-[#E6DED1] hover:border-[#c59b27] inline-flex items-center justify-center transition-colors cursor-pointer"
+                          title={`Modificar datos de "${client.name}"`}
+                        >
+                          <span className="material-symbols-outlined text-[15px]">edit</span>
+                        </button>
+
+                        {/* Botón Eliminar Cliente */}
                         <button
                           type="button"
                           onClick={() => setClientToDelete(client)}
@@ -290,8 +487,9 @@ export const PendingCreditView: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })
+            )}
             </tbody>
           </table>
         </div>
@@ -405,22 +603,23 @@ export const PendingCreditView: React.FC = () => {
         {/* History Table */}
         <div className="overflow-x-auto">
           {filteredAbonos.length > 0 ? (
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[1080px] border-collapse">
               <thead>
-                <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase">
-                  <th className="py-3 px-4 font-semibold">Recibo / Fecha</th>
-                  <th className="py-3 px-4 font-semibold">Cliente / Código</th>
-                  <th className="py-3 px-4 font-semibold">Método de Pago</th>
-                  <th className="py-3 px-4 font-semibold">Referencia / Detalle</th>
-                  <th className="py-3 px-4 font-semibold">Estado Posterior</th>
-                  <th className="py-3 px-4 text-right font-semibold">Monto Abonado</th>
+                <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase text-[10px] tracking-wider">
+                  <th className="py-4 px-5 font-semibold whitespace-nowrap">Recibo / Fecha</th>
+                  <th className="py-4 px-5 font-semibold whitespace-nowrap">Cliente / Código</th>
+                  <th className="py-4 px-5 font-semibold whitespace-nowrap">Método de Pago</th>
+                  <th className="py-4 px-5 font-semibold whitespace-nowrap">Referencia / Detalle</th>
+                  <th className="py-4 px-5 font-semibold whitespace-nowrap">Estado Posterior</th>
+                  <th className="py-4 px-5 text-right font-semibold whitespace-nowrap">Monto Abonado</th>
+                  <th className="py-4 px-5 text-center font-semibold whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F5F2EB] text-[#2C2826]">
                 {filteredAbonos.map((abono) => (
                   <tr key={abono.id} className="hover:bg-[#F5F2EB]/30 transition-colors">
                     {/* Recibo / Fecha */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-4 px-5 whitespace-nowrap min-w-[150px]">
                       <span className="font-mono font-bold text-[#1A1817] block">{abono.id}</span>
                       <span className="text-[11px] text-[#6E665F] flex items-center gap-1 mt-0.5">
                         <span className="material-symbols-outlined text-[12px]">schedule</span>
@@ -429,7 +628,7 @@ export const PendingCreditView: React.FC = () => {
                     </td>
 
                     {/* Cliente / Código */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-4 px-5 whitespace-nowrap min-w-[170px]">
                       <div className="font-semibold text-[#1A1817] flex items-center gap-1.5">
                         <span>{abono.clientName}</span>
                         <span className="px-1.5 py-0.2 rounded-none bg-[#F5F2EB] text-[#775a00] font-semibold text-[9px] border border-[#E6DED1]">
@@ -440,8 +639,8 @@ export const PendingCreditView: React.FC = () => {
                     </td>
 
                     {/* Método de Pago */}
-                    <td className="py-3.5 px-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#E6DED1] text-[#1A1817] font-medium text-[11px]">
+                    <td className="py-4 px-5 whitespace-nowrap min-w-[160px]">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#E6DED1] text-[#1A1817] font-medium text-[11px] whitespace-nowrap">
                         <span className="material-symbols-outlined text-[14px] text-[#c59b27]">
                           {abono.paymentMethod === 'cash'
                             ? 'attach_money'
@@ -454,36 +653,48 @@ export const PendingCreditView: React.FC = () => {
                     </td>
 
                     {/* Referencia / Detalle */}
-                    <td className="py-3.5 px-4 text-[#6E665F] max-w-[240px]">
+                    <td className="py-4 px-5 text-[#6E665F] min-w-[180px] max-w-[280px]">
                       {abono.reference ? (
-                        <span className="italic block truncate text-[11px]">{abono.reference}</span>
+                        <span className="italic block text-[11px]">{abono.reference}</span>
                       ) : (
                         <span className="text-neutral-400">—</span>
                       )}
                     </td>
 
                     {/* Estado Posterior */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-4 px-5 whitespace-nowrap min-w-[190px]">
                       {abono.remainingBalance === 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#2D5A27]/10 text-[#2D5A27] font-bold text-[10px] border border-[#2D5A27]/20">
-                          <span className="material-symbols-outlined text-[12px]">task_alt</span>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#2D5A27]/10 text-[#2D5A27] font-bold text-[11px] border border-[#2D5A27]/20 whitespace-nowrap">
+                          <span className="material-symbols-outlined text-[14px]">task_alt</span>
                           Liquidado Total
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-[#6E665F]">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-[#6E665F] whitespace-nowrap">
                           <span>Saldo remanente:</span>
                           <span className="font-mono font-bold text-[#1A1817]">
-                            ${abono.remainingBalance.toFixed(2)}
+                            ${abono.remainingBalance.toFixed(2)} USD
                           </span>
                         </span>
                       )}
                     </td>
 
                     {/* Monto Abonado */}
-                    <td className="py-3.5 px-4 text-right">
-                      <span className="font-mono font-bold text-sm text-[#2D5A27] bg-[#2D5A27]/5 px-2.5 py-1 border border-[#2D5A27]/20 inline-block">
+                    <td className="py-4 px-5 text-right whitespace-nowrap min-w-[170px]">
+                      <span className="font-mono font-bold text-sm text-[#2D5A27] bg-[#2D5A27]/5 px-3.5 py-1.5 border border-[#2D5A27]/20 inline-block whitespace-nowrap">
                         +${abono.amount.toFixed(2)} USD
                       </span>
+                    </td>
+
+                    {/* Acciones */}
+                    <td className="py-4 px-5 text-center whitespace-nowrap min-w-[80px]">
+                      <button
+                        type="button"
+                        onClick={() => setAbonoToDelete(abono)}
+                        className="w-7 h-7 bg-[#FAF8F5] hover:bg-[#FAF0EF] text-[#6E665F] hover:text-[#8A2E2B] border border-[#E6DED1] hover:border-[#8A2E2B]/30 inline-flex items-center justify-center transition-colors cursor-pointer"
+                        title={`Eliminar abono ${abono.id}`}
+                      >
+                        <span className="material-symbols-outlined text-[15px]">delete</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -727,139 +938,27 @@ export const PendingCreditView: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Registrar Nuevo Cliente */}
-      {isAddClientModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1817]/50 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-lg rounded-none shadow-2xl border border-[#E6DED1] overflow-hidden max-h-[92vh] flex flex-col animate-fadeIn">
-            {/* Modal Header */}
-            <div className="p-5 bg-[#F5F2EB] border-b border-[#E6DED1] flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[#c59b27] text-2xl">person_add</span>
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-[#c59b27] tracking-widest block">
-                    Gestión de Clientes
-                  </span>
-                  <h3 className="font-serif text-lg font-bold text-[#1A1817]">
-                    Registrar Nuevo Cliente
-                  </h3>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddClientModalOpen(false)}
-                className="w-8 h-8 rounded-none bg-white hover:bg-neutral-200 text-[#2C2826] flex items-center justify-center transition-colors cursor-pointer border border-[#E6DED1]"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
+      {/* Modal Registrar Nuevo Cliente Place Vendôme */}
+      <RegisterClientModal
+        isOpen={isAddClientModalOpen}
+        onClose={() => setIsAddClientModalOpen(false)}
+        onClientCreated={(newClient) => {
+          setClients(SalesRepository.getClients());
+          showNotify(`Cliente "${newClient.name}" (${newClient.code}) registrado y guardado en la base de datos.`);
+        }}
+      />
 
-            {/* Modal Form */}
-            <form onSubmit={handleCreateClient} className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
-                {/* Nombre */}
-                <div>
-                  <label className="block text-[#1A1817] font-bold uppercase tracking-wider text-[11px] mb-1">
-                    Nombre Completo del Cliente *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    placeholder="Ej. Sofia Reyes / Carlos Mendoza"
-                    className="w-full px-3 py-2 bg-white border border-[#E6DED1] rounded-none text-xs text-[#1A1817] font-medium focus:outline-hidden focus:border-[#c59b27]"
-                    autoFocus
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Teléfono / WhatsApp */}
-                  <div>
-                    <label className="block text-[#1A1817] font-bold uppercase tracking-wider text-[11px] mb-1">
-                      Teléfono / WhatsApp
-                    </label>
-                    <input
-                      type="text"
-                      value={newClientPhone}
-                      onChange={(e) => setNewClientPhone(e.target.value)}
-                      placeholder="Ej. +52 55 1234 5678"
-                      className="w-full px-3 py-2 bg-white border border-[#E6DED1] rounded-none text-xs text-[#1A1817] focus:outline-hidden focus:border-[#c59b27]"
-                    />
-                  </div>
-
-                  {/* Casa Preferida */}
-                  <div>
-                    <label className="block text-[#1A1817] font-bold uppercase tracking-wider text-[11px] mb-1">
-                      Casa Preferida
-                    </label>
-                    <input
-                      type="text"
-                      value={newClientHouse}
-                      onChange={(e) => setNewClientHouse(e.target.value)}
-                      placeholder="Ej. Creed, Maison Alura, Tom Ford"
-                      className="w-full px-3 py-2 bg-white border border-[#E6DED1] rounded-none text-xs text-[#1A1817] focus:outline-hidden focus:border-[#c59b27]"
-                    />
-                  </div>
-                </div>
-
-                {/* Saldo Inicial Pendiente */}
-                <div>
-                  <label className="block text-[#1A1817] font-bold uppercase tracking-wider text-[11px] mb-1 flex items-center justify-between">
-                    <span>Saldo Inicial Adeudado ($ USD)</span>
-                    <span className="text-[10px] text-[#6E665F] font-normal">Dejar en 0 si no adeuda nada</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#6E665F] font-mono">
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={newClientBalance}
-                      onChange={(e) => setNewClientBalance(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full pl-7 pr-3 py-2 bg-white border border-[#E6DED1] rounded-none text-xs font-mono font-bold text-[#1A1817] focus:outline-hidden focus:border-[#c59b27]"
-                    />
-                  </div>
-                </div>
-
-                {/* Notas / Observaciones */}
-                <div>
-                  <label className="block text-[#1A1817] font-bold uppercase tracking-wider text-[11px] mb-1">
-                    Notas u Observaciones del Cliente (Opcional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={newClientNotes}
-                    onChange={(e) => setNewClientNotes(e.target.value)}
-                    placeholder="Preferencias de fragancias, dirección de entrega o comentarios especiales..."
-                    className="w-full px-3 py-2 bg-white border border-[#E6DED1] rounded-none text-xs text-[#1A1817] focus:outline-hidden focus:border-[#c59b27]"
-                  />
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="p-3.5 sm:p-4 bg-[#FAF8F5] border-t border-[#E6DED1] flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsAddClientModalOpen(false)}
-                  className="px-4 py-2.5 sm:py-2 border border-[#E6DED1] bg-white text-xs font-semibold text-[#6E665F] hover:text-[#1A1817] hover:bg-neutral-100 transition-colors rounded-none cursor-pointer flex items-center justify-center order-2 sm:order-1"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 sm:py-2 bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] text-xs font-bold transition-all rounded-none flex items-center justify-center gap-2 cursor-pointer shadow-xs order-1 sm:order-2"
-                >
-                  <span className="material-symbols-outlined text-[16px]">save</span>
-                  Guardar Cliente
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modal Modificar / Editar Cliente Place Vendôme */}
+      <EditClientModal
+        isOpen={Boolean(clientToEdit)}
+        client={clientToEdit}
+        onClose={() => setClientToEdit(null)}
+        onClientUpdated={(updated) => {
+          setClients(SalesRepository.getClients());
+          showNotify(`✓ Datos de "${updated.name}" modificados exitosamente.`);
+          setClientToEdit(null);
+        }}
+      />
 
       {/* Modal Confirmar Eliminar Cliente */}
       {clientToDelete && (
@@ -896,6 +995,46 @@ export const PendingCreditView: React.FC = () => {
                 className="px-4 py-1.5 bg-[#8A2E2B] hover:bg-[#722624] text-white font-bold text-xs cursor-pointer shadow-xs"
               >
                 Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Eliminar Abono */}
+      {abonoToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1817]/50 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-sm rounded-none shadow-2xl border border-[#E6DED1] p-5 animate-fadeIn">
+            <div className="flex items-center gap-2.5 text-[#8A2E2B] mb-2 pb-2 border-b border-[#FAF0EF]">
+              <span className="material-symbols-outlined text-2xl">receipt_long</span>
+              <h3 className="font-serif text-base font-bold text-[#1A1817]">¿Anular y Eliminar Abono?</h3>
+            </div>
+            <p className="text-xs text-[#6E665F] mb-3">
+              ¿Estás seguro de que deseas anular el recibo{' '}
+              <strong className="text-[#1A1817] font-mono">{abonoToDelete.id}</strong> de{' '}
+              <strong className="text-[#1A1817]">{abonoToDelete.clientName}</strong> por un monto de{' '}
+              <strong className="font-mono text-[#2D5A27]">+${abonoToDelete.amount.toFixed(2)} USD</strong>?
+            </p>
+            <div className="p-2.5 mb-4 bg-[#FAF8F5] border border-[#E6DED1] text-[11px] text-[#6E665F] text-left">
+              <span className="font-semibold block text-[#1A1817]">Efecto contable automático:</span>
+              <span>
+                El monto se restituirá a la cuenta por cobrar de {abonoToDelete.clientName} y el arqueo de caja se actualizará en tiempo real.
+              </span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAbonoToDelete(null)}
+                className="px-3.5 py-1.5 border border-[#E6DED1] text-xs font-semibold text-[#6E665F] hover:bg-[#FAF8F5] cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteAbono}
+                className="px-4 py-1.5 bg-[#8A2E2B] hover:bg-[#722624] text-white font-bold text-xs cursor-pointer shadow-xs"
+              >
+                Sí, Anular Abono
               </button>
             </div>
           </div>

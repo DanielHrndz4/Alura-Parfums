@@ -38,6 +38,8 @@ export interface ClientProfile {
   pendingBalance: number;
   lastPurchase: string;
   favoriteHouse: string;
+  lastFragrance?: string;
+  lastFormat?: string;
   phone?: string;
   notes?: string;
 }

@@ -26,6 +26,26 @@ export const SupplierInvoicesView: React.FC = () => {
   const [payAmountInput, setPayAmountInput] = useState<string>('');
   const [payMethod, setPayMethod] = useState<'transfer' | 'cash' | 'pos'>('transfer');
   const [payReference, setPayReference] = useState('');
+  const [invoiceToDelete, setInvoiceToDelete] = useState<SupplierBatchInvoice | null>(null);
+  const [paymentToDelete, setPaymentToDelete] = useState<SupplierPaymentRecord | null>(null);
+
+  const confirmDeleteInvoice = () => {
+    if (!invoiceToDelete) return;
+    SupplierRepository.deleteInvoice(invoiceToDelete.id);
+    setInvoices(SupplierRepository.getAll());
+    setPaymentsHistory(SupplierRepository.getPayments());
+    showNotification(`Factura de compra "${invoiceToDelete.concept}" eliminada.`);
+    setInvoiceToDelete(null);
+  };
+
+  const confirmDeletePayment = () => {
+    if (!paymentToDelete) return;
+    SupplierRepository.deletePayment(paymentToDelete.id);
+    setInvoices(SupplierRepository.getAll());
+    setPaymentsHistory(SupplierRepository.getPayments());
+    showNotification(`Pago de $${paymentToDelete.amount.toFixed(2)} USD a ${paymentToDelete.supplierName} anulado.`);
+    setPaymentToDelete(null);
+  };
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -346,31 +366,31 @@ export const SupplierInvoicesView: React.FC = () => {
         {activeTab !== 'payments' && (
           <div className="overflow-x-auto">
             {filteredInvoices.length > 0 ? (
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-xs min-w-[1080px] border-collapse">
                 <thead>
-                  <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase">
-                    <th className="py-3 px-4 font-semibold">Factura / Fecha</th>
-                    <th className="py-3 px-4 font-semibold">Empresa Proveedora</th>
-                    <th className="py-3 px-4 font-semibold">Concepto / Frascos</th>
-                    <th className="py-3 px-4 text-right font-semibold">Total ($ USD)</th>
-                    <th className="py-3 px-4 text-right font-semibold">Pagado</th>
-                    <th className="py-3 px-4 text-right font-semibold">Saldo Pendiente</th>
-                    <th className="py-3 px-4 text-center font-semibold">Estatus</th>
-                    <th className="py-3 px-4 text-right font-semibold">Acción</th>
+                  <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase text-[10px] tracking-wider">
+                    <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Factura / Fecha</th>
+                    <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Empresa Proveedora</th>
+                    <th className="py-3.5 px-4 font-semibold">Concepto / Frascos</th>
+                    <th className="py-3.5 px-4 text-right font-semibold whitespace-nowrap">Total ($ USD)</th>
+                    <th className="py-3.5 px-4 text-right font-semibold whitespace-nowrap">Pagado</th>
+                    <th className="py-3.5 px-4 text-right font-semibold whitespace-nowrap">Saldo Pendiente</th>
+                    <th className="py-3.5 px-4 text-center font-semibold whitespace-nowrap">Estatus</th>
+                    <th className="py-3.5 px-4 text-center font-semibold whitespace-nowrap">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F5F2EB] text-[#2C2826]">
                   {filteredInvoices.map((inv) => (
                     <tr key={inv.id} className="hover:bg-[#F5F2EB]/30 transition-colors">
                       {/* ID / Date */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span className="font-mono font-bold text-[#1A1817] block">{inv.id}</span>
                         <span className="text-[10px] text-[#6E665F] font-mono">{inv.invoiceNumber}</span>
                         <span className="text-[10px] text-[#6E665F] block mt-0.5">{inv.issueDate}</span>
                       </td>
 
                       {/* Supplier */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span className="font-semibold text-[#1A1817] block">{inv.supplierName}</span>
                         {inv.supplierLocation && (
                           <span className="text-[10px] text-[#6E665F]">{inv.supplierLocation}</span>
@@ -378,7 +398,7 @@ export const SupplierInvoicesView: React.FC = () => {
                       </td>
 
                       {/* Concept */}
-                      <td className="py-3.5 px-4 max-w-xs">
+                      <td className="py-3.5 px-4 min-w-[180px] max-w-xs">
                         <span className="font-medium text-[#1A1817] block">{inv.concept}</span>
                         {inv.quantity && (
                           <span className="inline-block mt-0.5 px-1.5 py-0.2 bg-[#F5F2EB] text-[#6E665F] text-[10px] border border-[#E6DED1]">
@@ -388,36 +408,36 @@ export const SupplierInvoicesView: React.FC = () => {
                       </td>
 
                       {/* Total */}
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sm text-[#1A1817]">
-                        ${inv.totalAmount.toFixed(2)}
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sm text-[#1A1817] whitespace-nowrap">
+                        ${inv.totalAmount.toFixed(2)} USD
                       </td>
 
                       {/* Paid */}
-                      <td className="py-3.5 px-4 text-right font-mono text-[#2D5A27] font-semibold">
-                        ${inv.paidAmount.toFixed(2)}
+                      <td className="py-3.5 px-4 text-right font-mono text-[#2D5A27] font-semibold whitespace-nowrap">
+                        ${inv.paidAmount.toFixed(2)} USD
                       </td>
 
                       {/* Pending */}
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sm">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-sm whitespace-nowrap">
                         {inv.pendingAmount > 0 ? (
-                          <span className="text-[#b91c1c]">${inv.pendingAmount.toFixed(2)}</span>
+                          <span className="text-[#b91c1c]">${inv.pendingAmount.toFixed(2)} USD</span>
                         ) : (
-                          <span className="text-[#2D5A27]">$0.00</span>
+                          <span className="text-[#2D5A27]">$0.00 USD</span>
                         )}
                       </td>
 
                       {/* Status */}
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         {inv.pendingAmount === 0 ? (
-                          <span className="px-2 py-0.5 bg-[#F0F5EE] text-[#2D5A27] border border-[#2D5A27]/20 text-[10px] font-bold">
+                          <span className="px-2.5 py-0.5 bg-[#F0F5EE] text-[#2D5A27] border border-[#2D5A27]/20 text-[10px] font-bold whitespace-nowrap">
                             Pagado ✓
                           </span>
                         ) : inv.paidAmount > 0 ? (
-                          <span className="px-2 py-0.5 bg-[#FDF8EA] text-[#946E19] border border-[#946E19]/30 text-[10px] font-bold">
+                          <span className="px-2.5 py-0.5 bg-[#FDF8EA] text-[#946E19] border border-[#946E19]/30 text-[10px] font-bold whitespace-nowrap">
                             Abono Parcial
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 bg-[#FAF0EF] text-[#b91c1c] border border-[#b91c1c]/20 text-[10px] font-bold">
+                          <span className="px-2.5 py-0.5 bg-[#FAF0EF] text-[#b91c1c] border border-[#b91c1c]/20 text-[10px] font-bold whitespace-nowrap">
                             Pendiente
                           </span>
                         )}
@@ -425,20 +445,30 @@ export const SupplierInvoicesView: React.FC = () => {
 
                       {/* Action */}
                       <td className="py-3.5 px-4 text-right">
-                        {inv.pendingAmount > 0 ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {inv.pendingAmount > 0 ? (
+                            <button
+                              onClick={() => handleOpenPayModal(inv)}
+                              className="px-3 py-1.5 bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] font-bold text-xs rounded-none transition-all cursor-pointer shadow-xs inline-flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">payments</span>
+                              Abonar / Pagar
+                            </button>
+                          ) : (
+                            <span className="text-[#2D5A27] font-semibold text-xs inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[15px]">done_all</span>
+                              Liquidado
+                            </span>
+                          )}
                           <button
-                            onClick={() => handleOpenPayModal(inv)}
-                            className="px-3 py-1.5 bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] font-bold text-xs rounded-none transition-all cursor-pointer shadow-xs inline-flex items-center gap-1"
+                            type="button"
+                            onClick={() => setInvoiceToDelete(inv)}
+                            className="w-7 h-7 bg-[#FAF8F5] hover:bg-[#FAF0EF] text-[#6E665F] hover:text-[#8A2E2B] border border-[#E6DED1] hover:border-[#8A2E2B]/30 inline-flex items-center justify-center transition-colors cursor-pointer"
+                            title={`Eliminar factura ${inv.invoiceNumber || inv.id}`}
                           >
-                            <span className="material-symbols-outlined text-[15px]">payments</span>
-                            Abonar / Pagar
+                            <span className="material-symbols-outlined text-[15px]">delete</span>
                           </button>
-                        ) : (
-                          <span className="text-[#2D5A27] font-semibold text-xs inline-flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[15px]">done_all</span>
-                            Liquidado
-                          </span>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -457,20 +487,21 @@ export const SupplierInvoicesView: React.FC = () => {
         {/* Tab 4: Payments History Table */}
         {activeTab === 'payments' && (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left text-xs min-w-[880px] border-collapse">
               <thead>
-                <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase">
-                  <th className="py-3 px-4 font-semibold">Comprobante / Fecha</th>
-                  <th className="py-3 px-4 font-semibold">Empresa Proveedora</th>
-                  <th className="py-3 px-4 font-semibold">Método de Pago</th>
-                  <th className="py-3 px-4 font-semibold">Referencia / Detalle</th>
-                  <th className="py-3 px-4 text-right font-semibold">Monto Pagado</th>
+                <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase text-[10px] tracking-wider">
+                  <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Comprobante / Fecha</th>
+                  <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Empresa Proveedora</th>
+                  <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Método de Pago</th>
+                  <th className="py-3.5 px-4 font-semibold">Referencia / Detalle</th>
+                  <th className="py-3.5 px-4 text-right font-semibold whitespace-nowrap">Monto Pagado</th>
+                  <th className="py-3.5 px-4 text-center font-semibold whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F5F2EB] text-[#2C2826]">
                 {paymentsHistory.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-[#6E665F]">
+                    <td colSpan={6} className="py-12 text-center text-[#6E665F]">
                       <span className="material-symbols-outlined text-4xl text-[#6E665F]/40 mb-2 block">
                         payments
                       </span>
@@ -481,26 +512,36 @@ export const SupplierInvoicesView: React.FC = () => {
                 ) : (
                   paymentsHistory.map((p) => (
                     <tr key={p.id} className="hover:bg-[#F5F2EB]/30 transition-colors">
-                      <td className="py-3.5 px-4 font-mono">
+                      <td className="py-3.5 px-4 font-mono whitespace-nowrap">
                         <span className="font-bold text-[#1A1817] block">{p.id}</span>
                         <span className="text-[10px] text-[#6E665F]">{p.date}</span>
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-[#1A1817]">{p.supplierName}</td>
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#F5F2EB] border border-[#E6DED1] text-[10px] font-medium">
+                      <td className="py-3.5 px-4 font-semibold text-[#1A1817] whitespace-nowrap">{p.supplierName}</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#F5F2EB] border border-[#E6DED1] text-[10px] font-medium whitespace-nowrap">
                           <span className="material-symbols-outlined text-[12px] text-[#c59b27]">
                             {p.paymentMethod === 'transfer' ? 'sync_alt' : p.paymentMethod === 'pos' ? 'credit_card' : 'attach_money'}
                           </span>
                           {p.paymentMethod === 'transfer' ? 'Transferencia' : p.paymentMethod === 'pos' ? 'Tarjeta' : 'Efectivo'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-[#6E665F] text-[11px] max-w-xs truncate">
+                      <td className="py-3.5 px-4 text-[#6E665F] text-[11px] min-w-[160px] max-w-xs">
                         {p.reference || '—'}
                       </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <span className="font-mono font-bold text-sm text-[#2D5A27] bg-[#2D5A27]/5 px-2 py-0.5 border border-[#2D5A27]/20">
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <span className="font-mono font-bold text-sm text-[#2D5A27] bg-[#2D5A27]/5 px-2.5 py-0.5 border border-[#2D5A27]/20 whitespace-nowrap">
                           ${p.amount.toFixed(2)} USD
                         </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentToDelete(p)}
+                          className="w-7 h-7 bg-[#FAF8F5] hover:bg-[#FAF0EF] text-[#6E665F] hover:text-[#8A2E2B] border border-[#E6DED1] hover:border-[#8A2E2B]/30 inline-flex items-center justify-center transition-colors cursor-pointer"
+                          title={`Eliminar pago ${p.id}`}
+                        >
+                          <span className="material-symbols-outlined text-[15px]">delete</span>
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -935,6 +976,86 @@ export const SupplierInvoicesView: React.FC = () => {
               >
                 <span className="material-symbols-outlined text-[16px]">check</span>
                 Confirmar Pago {isValidPay ? `($${parsedPayAmount.toFixed(2)})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Eliminar Factura */}
+      {invoiceToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1817]/50 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-sm rounded-none shadow-2xl border border-[#E6DED1] p-5 animate-fadeIn">
+            <div className="flex items-center gap-2.5 text-[#8A2E2B] mb-2 pb-2 border-b border-[#FAF0EF]">
+              <span className="material-symbols-outlined text-2xl">delete_forever</span>
+              <h3 className="font-serif text-base font-bold text-[#1A1817]">¿Eliminar Factura de Compra?</h3>
+            </div>
+            <p className="text-xs text-[#6E665F] mb-3">
+              ¿Estás seguro de que deseas anular la compra{' '}
+              <strong className="text-[#1A1817] font-mono">{invoiceToDelete.invoiceNumber || invoiceToDelete.id}</strong> ({invoiceToDelete.concept}) de{' '}
+              <strong className="text-[#1A1817]">{invoiceToDelete.supplierName}</strong> por un total de{' '}
+              <strong className="font-mono text-[#1A1817]">${invoiceToDelete.totalAmount.toFixed(2)} USD</strong>?
+            </p>
+            <div className="p-2.5 mb-4 bg-[#FAF8F5] border border-[#E6DED1] text-[11px] text-[#6E665F] text-left">
+              <span className="font-semibold block text-[#1A1817]">Efecto contable automático:</span>
+              <span>
+                Se revertirán los saldos por pagar a proveedores y los desembolsos asociados se recalcularán al instante.
+              </span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setInvoiceToDelete(null)}
+                className="px-3.5 py-1.5 border border-[#E6DED1] text-xs font-semibold text-[#6E665F] hover:bg-[#FAF8F5] cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteInvoice}
+                className="px-4 py-1.5 bg-[#8A2E2B] hover:bg-[#722624] text-white font-bold text-xs cursor-pointer shadow-xs"
+              >
+                Sí, Eliminar Factura
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Eliminar Pago a Proveedor */}
+      {paymentToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1817]/50 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-sm rounded-none shadow-2xl border border-[#E6DED1] p-5 animate-fadeIn">
+            <div className="flex items-center gap-2.5 text-[#8A2E2B] mb-2 pb-2 border-b border-[#FAF0EF]">
+              <span className="material-symbols-outlined text-2xl">undo</span>
+              <h3 className="font-serif text-base font-bold text-[#1A1817]">¿Anular Pago a Proveedor?</h3>
+            </div>
+            <p className="text-xs text-[#6E665F] mb-3">
+              ¿Estás seguro de que deseas anular el comprobante de pago{' '}
+              <strong className="text-[#1A1817] font-mono">{paymentToDelete.id}</strong> a{' '}
+              <strong className="text-[#1A1817]">{paymentToDelete.supplierName}</strong> por un monto de{' '}
+              <strong className="font-mono text-[#b91c1c]">${paymentToDelete.amount.toFixed(2)} USD</strong>?
+            </p>
+            <div className="p-2.5 mb-4 bg-[#FAF8F5] border border-[#E6DED1] text-[11px] text-[#6E665F] text-left">
+              <span className="font-semibold block text-[#1A1817]">Efecto contable automático:</span>
+              <span>
+                El saldo pendiente de la factura correspondiente se restablecerá y el dinero egresado volverá a reflejarse en caja.
+              </span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentToDelete(null)}
+                className="px-3.5 py-1.5 border border-[#E6DED1] text-xs font-semibold text-[#6E665F] hover:bg-[#FAF8F5] cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeletePayment}
+                className="px-4 py-1.5 bg-[#8A2E2B] hover:bg-[#722624] text-white font-bold text-xs cursor-pointer shadow-xs"
+              >
+                Sí, Anular Pago
               </button>
             </div>
           </div>

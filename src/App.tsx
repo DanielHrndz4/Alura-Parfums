@@ -6,6 +6,7 @@ import { NavigationBar } from './components/common/NavigationBar';
 import { Sidebar } from './components/common/Sidebar';
 import { TopHeader } from './components/common/TopHeader';
 import { Footer } from './components/common/Footer';
+import { CartDrawer } from './components/common/CartDrawer';
 
 // Repositories for live Supabase synchronization
 import { PerfumeRepository } from './repositories/perfumeRepository';
@@ -144,9 +145,23 @@ export default function App() {
     setCartItems((prev) => prev.filter((i) => i.id !== cartItemId));
   };
 
+  const handleUpdateQuantity = (cartItemId: string, delta: number) => {
+    setCartItems((prev) =>
+      prev
+        .map((item) => {
+          if (item.id === cartItemId) {
+            const nextQty = item.quantity + delta;
+            return nextQty > 0 ? { ...item, quantity: nextQty } : null;
+          }
+          return item;
+        })
+        .filter((item): item is CartItem => item !== null)
+    );
+  };
+
   const handleProceedCheckout = () => {
-    setIsCartOpen(false);
-    navigate('/admin/pos');
+    // Open cart drawer directly for seamless WhatsApp ordering without exposing internal POS
+    setIsCartOpen(true);
   };
 
   // Check if current route is part of storefront boutique or admin management dashboard
@@ -168,6 +183,15 @@ export default function App() {
             onNavigate={handleNavigate}
             cartCount={cartItems.reduce((acc, i) => acc + i.quantity, 0)}
             onOpenCart={() => setIsCartOpen(true)}
+          />
+
+          <CartDrawer
+            isOpen={isCartOpen}
+            onClose={() => setIsCartOpen(false)}
+            items={cartItems}
+            onRemoveItem={handleRemoveFromCart}
+            onUpdateQuantity={handleUpdateQuantity}
+            onNavigateToCatalog={() => navigate('/collection')}
           />
 
           <main className="w-full pt-32 bg-[#fbf9f5] flex-1">

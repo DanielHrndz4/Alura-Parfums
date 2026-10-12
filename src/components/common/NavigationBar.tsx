@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
 interface NavigationBarProps {
   activeView: string;
@@ -13,8 +14,26 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
   cartCount,
   onOpenCart,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [showCategories, setShowCategories] = useState(true);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') || '');
+  }, [searchParams]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      navigate(`/collection?q=${encodeURIComponent(searchTerm.trim())}`);
+    } else {
+      navigate('/collection');
+    }
+  };
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -50,16 +69,13 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
       {/* Topmost Luxury Ticker */}
       <div className="w-full bg-[#F5F2EB]/80 px-3 sm:px-6 md:px-10 border-b border-[#E6DED1]/40 relative z-30">
         <div className="max-w-[1440px] mx-auto h-7 sm:h-8 flex items-center justify-between text-[#4e4635] font-label-sm uppercase tracking-widest text-[9px] sm:text-[10px]">
-          <span className="truncate max-w-[200px] sm:max-w-none">Édition Limitée • Expédition de Prestige Offerte</span>
+          <span className="truncate max-w-[280px] sm:max-w-none">Inspiraciones 1:1 • Misma Esencia • Frascos de 50ml ($10) y 100ml ($15 USD)</span>
           <div className="flex items-center gap-3 sm:gap-6 shrink-0">
             <span className="hidden md:inline">Place Vendôme • Mayfair</span>
-            <button
-              onClick={() => onNavigate('pos')}
-              className="text-[#775a00] hover:text-[#B8860B] font-semibold transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <span className="material-symbols-outlined text-[13px] sm:text-[14px]">admin_panel_settings</span>
-              <span>Atelier Privé / POS</span>
-            </button>
+            <span className="text-[#775a00] font-semibold flex items-center gap-1">
+              <span className="material-symbols-outlined text-[13px] sm:text-[14px]">verified</span>
+              <span>Fijación Superior +12h</span>
+            </span>
           </div>
         </div>
       </div>
@@ -76,16 +92,33 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
       {/* Main Bar */}
       <div className="h-16 sm:h-20 max-w-[1440px] mx-auto px-3 sm:px-6 md:px-10 flex items-center justify-between gap-2">
         <div className="flex items-center gap-4 flex-1">
-          <div className="hidden sm:flex relative items-center w-36 sm:w-48 md:w-64">
+          <form onSubmit={handleSearchSubmit} className="hidden sm:flex relative items-center w-36 sm:w-48 md:w-64">
             <input
-              className="w-full bg-white text-[#1b1c1a] placeholder:text-[#6E665F] font-body-sm text-xs pl-8 pr-2 py-1.5 rounded-lg border border-[#E6DED1]/60 outline-none focus:border-[#c59b27] transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white text-[#1b1c1a] placeholder:text-[#6E665F] font-body-sm text-xs pl-8 pr-6 py-1.5 rounded-lg border border-[#E6DED1]/60 outline-none focus:border-[#c59b27] transition-all"
               placeholder="Buscar fragancia..."
               type="search"
             />
             <span className="material-symbols-outlined absolute left-2 text-[16px] text-[#6E665F] pointer-events-none">
               search
             </span>
-          </div>
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  if (searchParams.get('q')) {
+                    navigate('/collection');
+                  }
+                }}
+                className="absolute right-2 text-[#6E665F] hover:text-[#1A1817] text-xs font-bold cursor-pointer"
+                title="Limpiar búsqueda"
+              >
+                ×
+              </button>
+            )}
+          </form>
           <div className="hidden lg:flex items-center gap-1 font-label-md text-label-md uppercase text-[#4e4635] cursor-pointer hover:text-[#1b1c1a] transition-colors">
             <span>$ USD</span>
             <span className="material-symbols-outlined text-[14px]">expand_more</span>
@@ -94,7 +127,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
 
         {/* Center Logo */}
         <div className="flex flex-col items-center justify-center text-center px-1 shrink-0">
-          <button onClick={() => onNavigate('storefront')} className="group block text-center cursor-pointer">
+          <button onClick={() => navigate('/')} className="group block text-center cursor-pointer">
             <span className="font-headline-lg tracking-wider text-[#1A1817] group-hover:text-[#775a00] transition-colors block leading-none font-serif text-lg sm:text-2xl md:text-3xl">
               ALURA PARFUMS
             </span>
@@ -104,21 +137,14 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
           </button>
         </div>
 
-        {/* Right Actions */}
+        {/* Right Actions (Bolsa y Favoritos para clientes) */}
         <div className="flex items-center justify-end gap-2 sm:gap-4 md:gap-6 flex-1 shrink-0">
           <button
-            onClick={() => onNavigate('pos')}
-            className="hidden lg:flex items-center gap-1 text-[#4e4635] hover:text-[#1b1c1a] transition-colors font-label-md text-label-md uppercase tracking-wider"
-          >
-            <span className="material-symbols-outlined text-[18px]">person</span>
-            <span>Mi Cuenta</span>
-          </button>
-          <button
-            onClick={() => onNavigate('vault')}
+            onClick={() => navigate('/collection')}
             className="hidden sm:flex relative text-[#4e4635] hover:text-[#1b1c1a] transition-colors items-center"
-            title="Lista de Deseos"
+            title="Catálogo"
           >
-            <span className="material-symbols-outlined text-[20px]">favorite</span>
+            <span className="material-symbols-outlined text-[20px]">storefront</span>
           </button>
           <button
             onClick={onOpenCart}
@@ -129,13 +155,6 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
             <span className="font-label-md uppercase tracking-wider text-[#2C2826] font-semibold text-xs">
               <span className="hidden sm:inline">Bolsa </span>({cartCount})
             </span>
-          </button>
-          <button
-            onClick={() => onNavigate('audit')}
-            className="w-7 sm:w-8 h-7 sm:h-8 rounded-full bg-[#775a00] hover:bg-[#B8860B] flex items-center justify-center transition-colors text-white cursor-pointer shadow-xs"
-            title="Ir a Gestión de Atelier"
-          >
-            <span className="material-symbols-outlined text-white text-[16px] sm:text-[18px]">tune</span>
           </button>
         </div>
       </div>
@@ -148,46 +167,80 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
             : 'max-h-0 opacity-0 border-t-0 pointer-events-none'
         }`}
       >
-        <nav className="max-w-[1440px] mx-auto h-12 px-4 md:px-10 flex items-center justify-center gap-4 sm:gap-8 overflow-x-auto">
+        <nav className="max-w-[1440px] mx-auto h-12 px-4 md:px-10 flex items-center justify-center gap-3 sm:gap-6 md:gap-8 overflow-x-auto">
+          {/* 1. Todo el Catálogo */}
           <button
-            onClick={() => onNavigate('/collection')}
-            className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-colors whitespace-nowrap ${
-              activeView === 'vault' || activeView === '/collection' ? 'text-[#775a00] font-bold border-b border-[#775a00]' : 'text-[#4e4635] hover:text-[#1b1c1a]'
+            onClick={() => navigate('/collection')}
+            className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
+              location.pathname === '/collection' &&
+              !searchParams.get('gender') &&
+              !searchParams.get('format') &&
+              !searchParams.get('sort')
+                ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
+                : 'text-[#4e4635] hover:text-[#1b1c1a]'
             }`}
           >
-            Colección
+            Todo el Catálogo
           </button>
+
+          {/* 2. Fragancias Femeninas (Mujer) */}
           <button
-            onClick={() => onNavigate('vault')}
-            className="text-[#4e4635] hover:text-[#1b1c1a] font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-colors whitespace-nowrap"
+            onClick={() => navigate('/collection?gender=fem')}
+            className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
+              location.pathname === '/collection' && searchParams.get('gender') === 'fem'
+                ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
+                : 'text-[#4e4635] hover:text-[#1b1c1a]'
+            }`}
           >
-            Fragancias Femeninas
+            Mujer
           </button>
+
+          {/* 3. Fragancias Masculinas (Hombre) */}
           <button
-            onClick={() => onNavigate('vault')}
-            className="text-[#4e4635] hover:text-[#1b1c1a] font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-colors whitespace-nowrap"
+            onClick={() => navigate('/collection?gender=masc')}
+            className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
+              location.pathname === '/collection' && searchParams.get('gender') === 'masc'
+                ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
+                : 'text-[#4e4635] hover:text-[#1b1c1a]'
+            }`}
           >
-            Fragancias Masculinas
+            Hombre
           </button>
+
+          {/* 4. Frascos de 50ml ($10 USD) */}
           <button
-            onClick={() => onNavigate('storefront')}
-            className="text-[#4e4635] hover:text-[#1b1c1a] font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-colors whitespace-nowrap"
+            onClick={() => navigate('/collection?format=50ml')}
+            className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
+              location.pathname === '/collection' && searchParams.get('format') === '50ml'
+                ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
+                : 'text-[#4e4635] hover:text-[#1b1c1a]'
+            }`}
           >
-            Atelier &amp; Muestras
+            50ml • $10 USD
           </button>
+
+          {/* 5. Frascos de 100ml ($15 USD) */}
           <button
-            onClick={() => onNavigate('storefront')}
-            className="text-[#4e4635] hover:text-[#1b1c1a] font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-colors whitespace-nowrap"
+            onClick={() => navigate('/collection?format=100ml')}
+            className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
+              location.pathname === '/collection' && searchParams.get('format') === '100ml'
+                ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
+                : 'text-[#4e4635] hover:text-[#1b1c1a]'
+            }`}
           >
-            Descubrir
+            100ml • $15 USD
           </button>
-          <span className="text-[#E6DED1]">|</span>
+
+          {/* 6. Más Vendidos */}
           <button
-            onClick={() => onNavigate('pos')}
-            className="text-[#B8860B] hover:text-[#775a00] font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-colors whitespace-nowrap font-semibold flex items-center gap-1"
+            onClick={() => navigate('/collection?bestsellers=true')}
+            className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
+              location.pathname === '/collection' && searchParams.get('bestsellers') === 'true'
+                ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
+                : 'text-[#4e4635] hover:text-[#1b1c1a]'
+            }`}
           >
-            <span className="material-symbols-outlined text-[14px]">point_of_sale</span>
-            <span>Panel Operativo</span>
+            ★ Más Vendidos
           </button>
         </nav>
       </div>

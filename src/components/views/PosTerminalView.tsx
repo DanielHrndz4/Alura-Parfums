@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Perfume } from '../../types/perfume';
-import { CartItem, PaymentMethod } from '../../types/sale';
+import { CartItem, PaymentMethod, ClientProfile, SaleTransaction } from '../../types/sale';
 import { SalesRepository } from '../../repositories/salesRepository';
 import { PerfumeRepository } from '../../repositories/perfumeRepository';
-import { PosService } from '../../services/posService';
+import { PosService, DiscountOption } from '../../services/posService';
+import { RegisterClientModal } from '../common/RegisterClientModal';
 
 interface PosTerminalViewProps {
   onNavigate: (view: string) => void;
@@ -11,8 +12,21 @@ interface PosTerminalViewProps {
 
 export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) => {
   const perfumes = PerfumeRepository.getAll();
-  const clients = SalesRepository.getClients();
+  const [clients, setClients] = useState<ClientProfile[]>(() => SalesRepository.getClients());
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
   const [salesLog, setSalesLog] = useState(SalesRepository.getAll());
+
+  useEffect(() => {
+    SalesRepository.fetchClientsFromSupabase().then((data) => {
+      if (data && data.length > 0) setClients(data);
+    });
+  }, []);
+
+  const showToast = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3500);
+  };
 
   // POS Search & Filter State
   const [searchFilter, setSearchFilter] = useState('');
@@ -28,6 +42,20 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('cash');
   const [cashTendered, setCashTendered] = useState<number>(0);
   const [ticketPrinted, setTicketPrinted] = useState<string | null>(null);
+  const [saleToDelete, setSaleToDelete] = useState<SaleTransaction | null>(null);
+
+  // Descuentos en Venta (Porcentaje o Monto Fijo en Dólares)
+  const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountReason, setDiscountReason] = useState<string>('');
+  const [isCustomDiscountOpen, setIsCustomDiscountOpen] = useState(false);
+
+  const confirmDeleteSale = () => {
+    if (!saleToDelete) return;
+    SalesRepository.deleteSale(saleToDelete.id);
+    setSalesLog(SalesRepository.getAll());
+    setSaleToDelete(null);
+  };
 
   // Fast Add Bottle to Tray (Standard Prices: 100ml = $15, 50ml = $10)
   const handleFastAdd = (perfume: Perfume) => {
@@ -76,7 +104,16 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
     setPosTray((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const { subtotal, total } = PosService.calculateTotals(posTray);
+  const discountOption = useMemo<DiscountOption | undefined>(() => {
+    if (discountValue <= 0) return undefined;
+    return {
+      type: discountType,
+      value: discountValue,
+      reason: discountReason.trim() || undefined,
+    };
+  }, [discountType, discountValue, discountReason]);
+
+  const { subtotal, discount, total } = PosService.calculateTotals(posTray, discountOption);
 
   // Credit & Installment calculations
   const chargedToday =
@@ -98,12 +135,20 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
   const handleConfirmSale = () => {
     if (posTray.length === 0) return;
 
-    const newSale = PosService.completeCheckout(posTray, selectedClient, selectedMethod);
+    const newSale = PosService.completeCheckout(
+      posTray,
+      selectedClient,
+      selectedMethod,
+      discountOption
+    );
     setSalesLog(SalesRepository.getAll());
     setTicketPrinted(newSale.id);
 
-    // Reset tray to empty state
+    // Reset tray to empty state and clear applied discount
     setPosTray([]);
+    setDiscountValue(0);
+    setDiscountReason('');
+    setIsCustomDiscountOpen(false);
   };
 
   // Filtered perfumes for Vitrina Showcase
@@ -125,6 +170,13 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
       return true;
     });
   }, [perfumes, searchFilter, categoryFilter]);
+
+  // Total de ventas de hoy calculado dinámicamente desde el registro real
+  const todaySalesTotal = useMemo(() => {
+    return salesLog
+      .filter((s) => !s.id.startsWith('#AB-') && !s.fragranceName.toLowerCase().includes('abono'))
+      .reduce((acc, s) => acc + s.total, 0);
+  }, [salesLog]);
 
   return (
     <div className="flex flex-col w-full max-w-7xl mx-auto space-y-6">
@@ -176,8 +228,8 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
           </div>
 
           <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-none bg-[#F0F5EE] border border-[#2D5A27]/20 text-xs">
-            <span className="font-mono font-bold text-[#2D5A27]">$195.00</span>
-            <span className="text-[#2D5A27] text-[11px]">hoy</span>
+            <span className="font-mono font-bold text-[#2D5A27]">${todaySalesTotal.toFixed(2)}</span>
+            <span className="text-[#2D5A27] text-[11px]">ventas hoy</span>
           </div>
 
           <button
@@ -379,13 +431,11 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
                   </label>
                   <button
                     type="button"
-                    onClick={() => {
-                      const newName = prompt('Nombre del nuevo cliente:');
-                      if (newName) setSelectedClient(newName);
-                    }}
-                    className="text-[#775a00] hover:text-[#946E19] font-bold text-[10px] cursor-pointer"
+                    onClick={() => setIsClientModalOpen(true)}
+                    className="text-[#775a00] hover:text-[#946E19] font-bold text-[10px] cursor-pointer flex items-center gap-1 transition-colors"
                   >
-                    + Nuevo Cliente
+                    <span className="material-symbols-outlined text-[14px]">person_add</span>
+                    <span>+ Nuevo Cliente</span>
                   </button>
                 </div>
 
@@ -393,56 +443,25 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6E665F] text-[18px]">
                     person
                   </span>
-                  <div className="flex gap-2">
-                    <select
-                      value={selectedClient}
-                      onChange={(e) => {
-                        if (e.target.value === '__NEW__') {
-                          setIsAddingNewClient(true);
-                          setSelectedClient('');
-                        } else {
-                          setIsAddingNewClient(false);
-                          setSelectedClient(e.target.value);
-                        }
-                      }}
-                      className="w-full bg-[#FAF8F5] pl-9 pr-8 py-2 rounded-none text-xs text-[#1A1817] font-medium border border-[#E6DED1] focus:border-[#1A1817] outline-none transition-all cursor-pointer"
-                    >
-                      <option value="Cliente Mostrador">Cliente Mostrador</option>
-                      {clients.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {c.name.replace(/\(.*?\)/, '').trim()} ({c.code}) {c.pendingBalance > 0 ? `(Debe: $${c.pendingBalance.toFixed(2)})` : ''}
-                        </option>
-                      ))}
-                      <option value="__NEW__">+ Registrar Nuevo Cliente...</option>
-                    </select>
-                  </div>
-                  {isAddingNewClient && (
-                    <div className="mt-2 flex gap-2">
-                      <input
-                        type="text"
-                        value={customClientName}
-                        onChange={(e) => {
-                          setCustomClientName(e.target.value);
-                          setSelectedClient(e.target.value);
-                        }}
-                        placeholder="Nombre y apellido del cliente..."
-                        className="flex-1 bg-white px-3 py-1.5 border border-[#c59b27] text-xs text-[#1A1817] outline-none"
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (customClientName.trim()) {
-                            setSelectedClient(customClientName.trim());
-                            setIsAddingNewClient(false);
-                          }
-                        }}
-                        className="px-3 py-1.5 bg-[#c59b27] text-[#1A1817] text-xs font-bold cursor-pointer"
-                      >
-                        OK
-                      </button>
-                    </div>
-                  )}
+                  <select
+                    value={selectedClient}
+                    onChange={(e) => {
+                      if (e.target.value === '__NEW__') {
+                        setIsClientModalOpen(true);
+                      } else {
+                        setSelectedClient(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-[#FAF8F5] pl-9 pr-8 py-2 rounded-none text-xs text-[#1A1817] font-medium border border-[#E6DED1] focus:border-[#1A1817] outline-none transition-all cursor-pointer"
+                  >
+                    <option value="Cliente Mostrador">Cliente Mostrador</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name.replace(/\(.*?\)/, '').trim()} ({c.code}) {c.pendingBalance > 0 ? `(Debe: $${c.pendingBalance.toFixed(2)})` : ''}
+                      </option>
+                    ))}
+                    <option value="__NEW__">+ Registrar Nuevo Cliente...</option>
+                  </select>
                 </div>
               </div>
 
@@ -528,11 +547,159 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
                 )}
               </div>
 
+              {/* Sección de Descuentos (Aplicar Descuento a la Venta) */}
+              <div className="p-3 bg-[#FAF8F5] rounded-none border border-[#E6DED1] space-y-2 mb-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[#6E665F]">
+                    <span className="material-symbols-outlined text-[15px] text-[#c59b27]">loyalty</span>
+                    <span className="uppercase font-bold tracking-wider text-[10px]">
+                      Descuento en Venta
+                    </span>
+                  </div>
+                  {discount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDiscountValue(0);
+                        setDiscountReason('');
+                        setIsCustomDiscountOpen(false);
+                      }}
+                      className="text-[10px] text-[#8A2E2B] hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">close</span>
+                      <span>Quitar ({discountType === 'percent' ? `${discountValue}%` : `$${discountValue}`})</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Botones Rápidos de Descuento */}
+                <div className="grid grid-cols-5 gap-1">
+                  {[
+                    { label: '0%', val: 0 },
+                    { label: '5%', val: 5 },
+                    { label: '10%', val: 10 },
+                    { label: '15%', val: 15 },
+                    { label: '20%', val: 20 },
+                  ].map((p) => {
+                    const isSelected =
+                      discountType === 'percent' && discountValue === p.val && !isCustomDiscountOpen;
+                    return (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          setDiscountType('percent');
+                          setDiscountValue(p.val);
+                          setIsCustomDiscountOpen(false);
+                          if (p.val === 0) setDiscountReason('');
+                        }}
+                        className={`py-1 rounded-none text-center font-mono text-[11px] font-bold border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#1A1817] text-white border-[#1A1817]'
+                            : 'bg-white text-[#2C2826] border-[#E6DED1] hover:bg-[#F5F2EB]'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Opción Descuento Personalizado ($ fijo o % libre + Motivo) */}
+                <div className="pt-0.5">
+                  {!isCustomDiscountOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomDiscountOpen(true)}
+                      className="text-[10px] text-[#775a00] hover:text-[#946E19] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">tune</span>
+                      <span>+ Descuento personalizado ($ fijo o % libre)</span>
+                    </button>
+                  ) : (
+                    <div className="p-2.5 bg-white border border-[#E6DED1] space-y-2 mt-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-bold text-[#6E665F]">Modalidad de Descuento:</span>
+                        <div className="flex bg-[#FAF8F5] border border-[#E6DED1]">
+                          <button
+                            type="button"
+                            onClick={() => setDiscountType('percent')}
+                            className={`px-2 py-0.5 font-bold text-[10px] cursor-pointer ${
+                              discountType === 'percent'
+                                ? 'bg-[#1A1817] text-white'
+                                : 'text-[#6E665F] hover:text-[#1A1817]'
+                            }`}
+                          >
+                            % Porcentaje
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDiscountType('fixed')}
+                            className={`px-2 py-0.5 font-bold text-[10px] cursor-pointer ${
+                              discountType === 'fixed'
+                                ? 'bg-[#1A1817] text-white'
+                                : 'text-[#6E665F] hover:text-[#1A1817]'
+                            }`}
+                          >
+                            $ Dólares (USD)
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-mono font-bold text-xs text-[#6E665F]">
+                            {discountType === 'fixed' ? '$' : '%'}
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={discountType === 'percent' ? '100' : subtotal.toString()}
+                            step="0.01"
+                            value={discountValue > 0 ? discountValue : ''}
+                            onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                            placeholder={discountType === 'fixed' ? '0.00 USD' : '0 %'}
+                            className="w-full pl-6 pr-2 py-1.5 bg-[#FAF8F5] border border-[#E6DED1] text-xs font-mono font-bold text-[#1A1817] outline-none focus:border-[#c59b27]"
+                          />
+                        </div>
+
+                        <input
+                          type="text"
+                          value={discountReason}
+                          onChange={(e) => setDiscountReason(e.target.value)}
+                          placeholder="Motivo (ej: Promo, Amigo...)"
+                          className="w-full px-2.5 py-1.5 bg-[#FAF8F5] border border-[#E6DED1] text-xs text-[#1A1817] outline-none focus:border-[#c59b27]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Totales Financieros */}
               <div className="p-3.5 bg-[#FAF8F5] rounded-none border border-[#E6DED1] space-y-2 mb-4 text-xs">
                 <div className="flex justify-between items-center text-[#6E665F]">
-                  <span>Total de los Frascos</span>
-                  <span className="font-mono text-[#1A1817] font-semibold">${total.toFixed(2)} USD</span>
+                  <span>Subtotal de los Frascos</span>
+                  <span className="font-mono text-[#1A1817] font-semibold">${subtotal.toFixed(2)} USD</span>
+                </div>
+
+                {/* Descuento Aplicado */}
+                {discount > 0 && (
+                  <div className="flex justify-between items-center text-[#8A2E2B] font-semibold bg-[#FAF0EF] px-2 py-1 border border-[#8A2E2B]/20">
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <span className="material-symbols-outlined text-[13px]">sell</span>
+                      <span>
+                        Descuento {discountReason ? `(${discountReason})` : discountType === 'percent' ? `(${discountValue}%)` : ''}
+                      </span>
+                    </span>
+                    <span className="font-mono text-[11px]">-${discount.toFixed(2)} USD</span>
+                  </div>
+                )}
+
+                {/* Total Final de Venta */}
+                <div className="flex justify-between items-center text-[#1A1817] font-semibold">
+                  <span>Total Neto de Venta</span>
+                  <span className="font-mono">${total.toFixed(2)} USD</span>
                 </div>
 
                 {/* Desglose de 2 Cuotas (50%) */}
@@ -662,36 +829,66 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
                       Vuelto: <strong className="text-[#1A1817] font-mono">${changeDue.toFixed(2)}</strong>
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-4 gap-1.5 mb-2">
                     <button
+                      type="button"
                       onClick={() => setCashTendered(chargedToday)}
-                      className={`py-1 rounded-none font-mono text-xs font-semibold border ${
+                      className={`py-1 rounded-none font-mono text-[11px] font-semibold border cursor-pointer ${
                         cashTendered === chargedToday
                           ? 'bg-[#1A1817] text-white border-[#1A1817]'
-                          : 'bg-white text-[#2C2826] border-[#E6DED1]'
+                          : 'bg-white text-[#2C2826] border-[#E6DED1] hover:bg-[#F5F2EB]'
                       }`}
                     >
-                      ${chargedToday.toFixed(2)}
+                      Exacto
                     </button>
                     <button
+                      type="button"
+                      onClick={() => setCashTendered(20.0)}
+                      className={`py-1 rounded-none font-mono text-[11px] font-semibold border cursor-pointer ${
+                        cashTendered === 20
+                          ? 'bg-[#1A1817] text-white border-[#1A1817]'
+                          : 'bg-white text-[#2C2826] border-[#E6DED1] hover:bg-[#F5F2EB]'
+                      }`}
+                    >
+                      $20.00
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setCashTendered(50.0)}
-                      className={`py-1 rounded-none font-mono text-xs font-semibold border ${
+                      className={`py-1 rounded-none font-mono text-[11px] font-semibold border cursor-pointer ${
                         cashTendered === 50
                           ? 'bg-[#1A1817] text-white border-[#1A1817]'
-                          : 'bg-white text-[#2C2826] border-[#E6DED1]'
+                          : 'bg-white text-[#2C2826] border-[#E6DED1] hover:bg-[#F5F2EB]'
                       }`}
                     >
                       $50.00
                     </button>
                     <button
-                      onClick={() => {
-                        const val = prompt('Monto en efectivo recibido:', String(chargedToday));
-                        if (val) setCashTendered(parseFloat(val) || chargedToday);
-                      }}
-                      className="py-1 rounded-none bg-white text-[#2C2826] font-mono text-xs font-semibold border border-[#E6DED1] hover:bg-[#ECE7DE]"
+                      type="button"
+                      onClick={() => setCashTendered(100.0)}
+                      className={`py-1 rounded-none font-mono text-[11px] font-semibold border cursor-pointer ${
+                        cashTendered === 100
+                          ? 'bg-[#1A1817] text-white border-[#1A1817]'
+                          : 'bg-white text-[#2C2826] border-[#E6DED1] hover:bg-[#F5F2EB]'
+                      }`}
                     >
-                      Otro
+                      $100.00
                     </button>
+                  </div>
+
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-mono font-bold text-xs text-[#6E665F]">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={cashTendered > 0 ? cashTendered : ''}
+                      onChange={(e) => setCashTendered(parseFloat(e.target.value) || 0)}
+                      placeholder="Monto entregado por cliente..."
+                      className="w-full pl-6 pr-3 py-1.5 bg-white border border-[#E6DED1] rounded-none text-xs font-mono font-bold text-[#1A1817] outline-none focus:border-[#c59b27] transition-colors"
+                    />
                   </div>
                 </div>
               )}
@@ -751,18 +948,18 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
           </div>
 
           <div className="overflow-x-auto rounded-none border border-[#E6DED1]">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs min-w-[960px]">
               <thead>
                 <tr className="bg-[#FAF8F5] text-[#6E665F] uppercase font-bold tracking-wider text-[10px] border-b border-[#E6DED1]">
-                  <th className="py-3 px-4">Ticket</th>
-                  <th className="py-3 px-4">Hora</th>
-                  <th className="py-3 px-4">Cliente</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Ticket</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Hora</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Cliente</th>
                   <th className="py-3 px-4">Fragancia</th>
-                  <th className="py-3 px-4">Formato</th>
-                  <th className="py-3 px-4">Método</th>
-                  <th className="py-3 px-4 text-right">Total</th>
-                  <th className="py-3 px-4 text-center">Estado</th>
-                  <th className="py-3 px-4 text-right">Acción</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Formato</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Método</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Total</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Estado</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E6DED1] text-[#2C2826]">
@@ -781,19 +978,19 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
                 ) : (
                   salesLog.map((sale) => (
                     <tr key={sale.id} className="hover:bg-[#FAF8F5]/70 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-[#1A1817]">
+                      <td className="py-3 px-4 font-mono font-bold text-[#1A1817] whitespace-nowrap">
                         {sale.id}
                       </td>
-                      <td className="py-3 px-4 text-[#6E665F]">{sale.time}</td>
-                      <td className="py-3 px-4 font-semibold text-[#1A1817]">
+                      <td className="py-3 px-4 text-[#6E665F] whitespace-nowrap">{sale.time}</td>
+                      <td className="py-3 px-4 font-semibold text-[#1A1817] whitespace-nowrap">
                         {sale.clientName.replace(/\(.*?\)/, '').trim()}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 min-w-[180px]">
                         <div className="font-semibold text-[#1A1817]">{sale.fragranceName}</div>
                         <div className="text-[10px] text-[#6E665F]">{sale.house}</div>
                       </td>
-                      <td className="py-3 px-4 text-[#6E665F]">{sale.format}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 text-[#6E665F] whitespace-nowrap">{sale.format}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1">
                           <span className="material-symbols-outlined text-[14px] text-[#775a00]">
                             {sale.paymentMethod === 'cash'
@@ -805,12 +1002,18 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
                           <span>{sale.paymentMethodLabel}</span>
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-[#1A1817]">
-                        ${sale.total.toFixed(2)}
+                      <td className="py-3 px-4 text-right font-mono font-bold text-[#1A1817] whitespace-nowrap">
+                        <div>${sale.total.toFixed(2)} USD</div>
+                        {sale.discount > 0 && (
+                          <div className="text-[10px] text-[#8A2E2B] font-normal flex items-center justify-end gap-1">
+                            <span className="line-through text-[#A89F91]">${sale.subtotal.toFixed(2)}</span>
+                            <span className="bg-[#FAF0EF] px-1 border border-[#8A2E2B]/20">-${sale.discount.toFixed(2)} desc.</span>
+                          </div>
+                        )}
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block px-2.5 py-0.5 rounded-none text-[10px] font-semibold ${
+                          className={`inline-block px-2.5 py-0.5 rounded-none text-[10px] font-semibold whitespace-nowrap ${
                             sale.status === 'Completado'
                               ? 'bg-[#F0F5EE] text-[#2D5A27]'
                               : 'bg-[#FDF8EA] text-[#946E19]'
@@ -819,14 +1022,23 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
                           {sale.status}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => setTicketPrinted(sale.id)}
-                          className="w-7 h-7 rounded-none bg-[#FAF8F5] hover:bg-[#ECE7DE] text-[#2C2826] inline-flex items-center justify-center transition-colors border border-[#E6DED1] cursor-pointer"
-                          title="Imprimir ticket"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">print</span>
-                        </button>
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setTicketPrinted(sale.id)}
+                            className="w-7 h-7 rounded-none bg-[#FAF8F5] hover:bg-[#ECE7DE] text-[#2C2826] inline-flex items-center justify-center transition-colors border border-[#E6DED1] cursor-pointer"
+                            title="Imprimir ticket"
+                          >
+                            <span className="material-symbols-outlined text-[15px]">print</span>
+                          </button>
+                          <button
+                            onClick={() => setSaleToDelete(sale)}
+                            className="w-7 h-7 rounded-none bg-[#FAF8F5] hover:bg-[#FAF0EF] text-[#6E665F] hover:text-[#8A2E2B] inline-flex items-center justify-center transition-colors border border-[#E6DED1] hover:border-[#8A2E2B]/30 cursor-pointer"
+                            title={`Eliminar venta ${sale.id}`}
+                          >
+                            <span className="material-symbols-outlined text-[15px]">delete</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -838,57 +1050,129 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
       )}
 
       {/* 4. TICKET CONFIRMATION MODAL (ROUNDED-NONE) */}
-      {ticketPrinted && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1817]/40 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-sm rounded-none p-6 border border-[#E6DED1] text-center font-mono shadow-2xl">
-            <span className="material-symbols-outlined text-4xl text-[#2D5A27] mb-2">check_circle</span>
-            <h3 className="font-serif text-lg font-bold text-[#1A1817]">Maison Alura Parfums</h3>
-            <p className="text-[11px] text-[#6E665F]">14 Place Vendôme, 75001 Paris</p>
-            <div className="my-4 py-3 border-y border-dashed border-[#E6DED1] text-left text-xs space-y-1">
-              <div className="flex justify-between">
-                <span>Comprobante:</span>
-                <span className="font-bold">{ticketPrinted}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Cliente:</span>
-                <span>{selectedClient.replace(/\(.*?\)/, '').trim()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Método:</span>
-                <span className="font-bold text-[11px]">
-                  {selectedMethod === 'credit100'
-                    ? 'Crédito (Pagar Luego)'
-                    : selectedMethod === 'credit50'
-                    ? 'Cuota 2 Pagos (50%)'
-                    : selectedMethod.toUpperCase()}
-                </span>
-              </div>
-              <div className="flex justify-between font-bold pt-2 border-t border-[#E6DED1]">
-                <span>Cobrado Hoy:</span>
-                <span>${chargedToday.toFixed(2)} USD</span>
-              </div>
-              {pendingDue > 0 && (
-                <div className="flex justify-between text-[#946E19] font-bold">
-                  <span>Saldo Pendiente:</span>
-                  <span>${pendingDue.toFixed(2)} USD</span>
+      {ticketPrinted && (() => {
+        const activeTicket = salesLog.find((s) => s.id === ticketPrinted);
+        const ticketClient = (activeTicket?.clientName || selectedClient).replace(/\(.*?\)/, '').trim();
+        const ticketMethod = activeTicket?.paymentMethodLabel || selectedMethod.toUpperCase();
+        const ticketSubtotal = activeTicket ? activeTicket.subtotal : subtotal;
+        const ticketDiscount = activeTicket ? activeTicket.discount : discount;
+        const ticketTotal = activeTicket ? activeTicket.total : total;
+        const ticketCharged =
+          activeTicket?.paymentMethod === 'credit100'
+            ? 0
+            : activeTicket?.paymentMethod === 'credit50'
+            ? ticketTotal / 2
+            : ticketTotal;
+        const ticketPending =
+          activeTicket?.paymentMethod === 'credit100'
+            ? ticketTotal
+            : activeTicket?.paymentMethod === 'credit50'
+            ? ticketTotal / 2
+            : 0;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1817]/40 backdrop-blur-xs">
+            <div className="bg-white w-full max-w-sm rounded-none p-6 border border-[#E6DED1] text-center font-mono shadow-2xl">
+              <span className="material-symbols-outlined text-4xl text-[#2D5A27] mb-2">check_circle</span>
+              <h3 className="font-serif text-lg font-bold text-[#1A1817]">Maison Alura Parfums</h3>
+              <p className="text-[11px] text-[#6E665F]">14 Place Vendôme, 75001 Paris</p>
+              <div className="my-4 py-3 border-y border-dashed border-[#E6DED1] text-left text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>Comprobante:</span>
+                  <span className="font-bold">{activeTicket?.id || ticketPrinted}</span>
                 </div>
-              )}
+                <div className="flex justify-between">
+                  <span>Cliente:</span>
+                  <span>{ticketClient}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Método:</span>
+                  <span className="font-bold text-[11px]">{ticketMethod}</span>
+                </div>
+
+                {ticketDiscount > 0 && (
+                  <>
+                    <div className="flex justify-between text-[#6E665F] pt-1">
+                      <span>Subtotal:</span>
+                      <span className="font-mono">${ticketSubtotal.toFixed(2)} USD</span>
+                    </div>
+                    <div className="flex justify-between text-[#8A2E2B] font-bold">
+                      <span>Descuento {activeTicket?.notes ? `(${activeTicket.notes})` : ''}:</span>
+                      <span className="font-mono">-${ticketDiscount.toFixed(2)} USD</span>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex justify-between font-bold pt-2 border-t border-[#E6DED1]">
+                  <span>Total Facturado:</span>
+                  <span>${ticketTotal.toFixed(2)} USD</span>
+                </div>
+                <div className="flex justify-between text-[#1A1817] font-bold">
+                  <span>Cobrado:</span>
+                  <span>${ticketCharged.toFixed(2)} USD</span>
+                </div>
+                {ticketPending > 0 && (
+                  <div className="flex justify-between text-[#946E19] font-bold">
+                    <span>Saldo Pendiente:</span>
+                    <span>${ticketPending.toFixed(2)} USD</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-[#6E665F] mb-4">
+                Maceración verificada. Fijación prolongada garantizada (+8-12h).
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="flex-1 py-2 rounded-none bg-[#FAF8F5] text-[#2C2826] font-sans font-semibold text-xs border border-[#E6DED1] hover:bg-[#F5F2EB] cursor-pointer"
+                >
+                  Imprimir
+                </button>
+                <button
+                  onClick={() => setTicketPrinted(null)}
+                  className="flex-1 py-2 rounded-none bg-[#c59b27] text-[#1A1817] font-sans font-semibold text-xs hover:bg-[#D4AF37] cursor-pointer"
+                >
+                  Continuar
+                </button>
+              </div>
             </div>
-            <p className="text-[10px] text-[#6E665F] mb-4">
-              Maceración verificada. Fijación prolongada garantizada (+8-12h).
+          </div>
+        );
+      })()}
+
+      {/* Modal Confirmar Eliminar Venta */}
+      {saleToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1817]/50 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-sm rounded-none shadow-2xl border border-[#E6DED1] p-5 animate-fadeIn">
+            <div className="flex items-center gap-2.5 text-[#8A2E2B] mb-2 pb-2 border-b border-[#FAF0EF]">
+              <span className="material-symbols-outlined text-2xl">delete_forever</span>
+              <h3 className="font-serif text-base font-bold text-[#1A1817]">¿Eliminar Factura de Venta?</h3>
+            </div>
+            <p className="text-xs text-[#6E665F] mb-3">
+              ¿Estás seguro de que deseas anular y borrar permanentemente el ticket{' '}
+              <strong className="text-[#1A1817] font-mono">{saleToDelete.id}</strong> ({saleToDelete.clientName}) por{' '}
+              <strong className="font-mono text-[#1A1817]">${saleToDelete.total.toFixed(2)} USD</strong>?
             </p>
-            <div className="flex gap-2">
+            <div className="p-2.5 mb-4 bg-[#FAF8F5] border border-[#E6DED1] text-[11px] text-[#6E665F] text-left">
+              <span className="font-semibold block text-[#1A1817]">Efecto contable automático:</span>
+              <span>
+                Se actualizarán el arqueo de caja y las cuentas por cobrar vinculadas a este registro.
+              </span>
+            </div>
+            <div className="flex justify-end gap-2">
               <button
-                onClick={() => window.print()}
-                className="flex-1 py-2 rounded-none bg-[#FAF8F5] text-[#2C2826] font-sans font-semibold text-xs border border-[#E6DED1] hover:bg-[#F5F2EB] cursor-pointer"
+                type="button"
+                onClick={() => setSaleToDelete(null)}
+                className="px-3.5 py-1.5 border border-[#E6DED1] text-xs font-semibold text-[#6E665F] hover:bg-[#FAF8F5] cursor-pointer"
               >
-                Imprimir
+                Cancelar
               </button>
               <button
-                onClick={() => setTicketPrinted(null)}
-                className="flex-1 py-2 rounded-none bg-[#c59b27] text-[#1A1817] font-sans font-semibold text-xs hover:bg-[#D4AF37] cursor-pointer"
+                type="button"
+                onClick={confirmDeleteSale}
+                className="px-4 py-1.5 bg-[#8A2E2B] hover:bg-[#722624] text-white font-bold text-xs cursor-pointer shadow-xs"
               >
-                Continuar
+                Sí, Eliminar Venta
               </button>
             </div>
           </div>
@@ -919,6 +1203,26 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
           </button>
         </div>
       )}
+
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed bottom-5 right-5 z-50 bg-[#1A1817] text-[#FAF8F5] px-4 py-3 border-l-4 border-[#c59b27] shadow-xl text-xs flex items-center gap-2.5 animate-fadeIn">
+          <span className="material-symbols-outlined text-[#c59b27] text-[18px]">verified</span>
+          <span className="font-medium">{notification}</span>
+        </div>
+      )}
+
+      {/* Modal Registrar Nuevo Cliente Place Vendôme */}
+      <RegisterClientModal
+        isOpen={isClientModalOpen}
+        onClose={() => setIsClientModalOpen(false)}
+        onClientCreated={(newClient) => {
+          const freshClients = SalesRepository.getClients();
+          setClients(freshClients);
+          setSelectedClient(newClient.name);
+          showToast(`Cliente "${newClient.name}" (${newClient.code}) registrado y guardado en la base de datos.`);
+        }}
+      />
     </div>
   );
 };

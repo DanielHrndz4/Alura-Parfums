@@ -222,6 +222,70 @@ export class SupplierRepository {
     }
   }
 
+  static deleteInvoice(id: string): boolean {
+    const list = this.getAll().filter((i) => i.id !== id);
+    LocalStorageAdapter.set(this.STORAGE_KEY, list);
+
+    const payments = this.getPayments().filter((p) => p.expenseId !== id);
+    LocalStorageAdapter.set(this.PAYMENTS_KEY, payments);
+
+    try {
+      supabase.from('supplier_invoices').delete().eq('id', id).then();
+      supabase.from('supplier_payments').delete().eq('expense_id', id).then();
+    } catch (e) {
+      console.warn('Supabase supplier invoice delete error:', e);
+    }
+
+    return true;
+  }
+
+  static deletePayment(id: string): boolean {
+    const payments = this.getPayments();
+    const payment = payments.find((p) => p.id === id);
+    if (!payment) return false;
+
+    const updatedPayments = payments.filter((p) => p.id !== id);
+    LocalStorageAdapter.set(this.PAYMENTS_KEY, updatedPayments);
+
+    if (payment.expenseId) {
+      const invoices = this.getAll();
+      const invoice = invoices.find((i) => i.id === payment.expenseId);
+      if (invoice) {
+        invoice.paidAmount = Math.max(0, Number((invoice.paidAmount - payment.amount).toFixed(2)));
+        invoice.pendingAmount = Math.max(0, Number((invoice.totalAmount - invoice.paidAmount).toFixed(2)));
+        invoice.status = invoice.pendingAmount === 0 ? 'Pagado' : invoice.paidAmount > 0 ? 'Abono Parcial' : 'Pendiente';
+        invoice.statusType = invoice.pendingAmount === 0 ? 'success' : 'warning';
+        invoice.dueDateHighlight = invoice.pendingAmount === 0 ? 'Liquidado' : 'Pago pendiente';
+        LocalStorageAdapter.set(this.STORAGE_KEY, invoices);
+
+        try {
+          supabase
+            .from('supplier_invoices')
+            .update({
+              paid_amount: invoice.paidAmount,
+              pending_amount: invoice.pendingAmount,
+              status: invoice.status,
+              status_type: invoice.statusType,
+              due_date_highlight: invoice.dueDateHighlight,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', invoice.id)
+            .then();
+        } catch (e) {
+          console.warn('Supabase invoice update error:', e);
+        }
+      }
+    }
+
+    try {
+      supabase.from('supplier_payments').delete().eq('id', id).then();
+    } catch (e) {
+      console.warn('Supabase payment delete error:', e);
+    }
+
+    return true;
+  }
+
   static getTotalExpenses(): number {
     const list = this.getAll();
     return list.reduce((acc, curr) => acc + curr.totalAmount, 0);

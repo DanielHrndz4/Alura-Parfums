@@ -64,6 +64,8 @@ export class SalesRepository {
         pendingBalance: Number(d.pending_balance),
         lastPurchase: d.last_purchase,
         favoriteHouse: d.favorite_house,
+        lastFragrance: d.last_fragrance,
+        lastFormat: d.last_format,
         phone: d.phone,
         notes: d.notes,
       }));
@@ -155,6 +157,8 @@ export class SalesRepository {
       client.pendingBalance = Number((client.pendingBalance + creditAmount).toFixed(2));
       client.lastPurchase = `Hoy ${sale.time}`;
       if (sale.house) client.favoriteHouse = sale.house;
+      if (sale.fragranceName) client.lastFragrance = sale.fragranceName;
+      if (sale.format) client.lastFormat = sale.format;
     } else {
       client = {
         id: `c-${Date.now()}`,
@@ -164,6 +168,8 @@ export class SalesRepository {
         pendingBalance: Number(creditAmount.toFixed(2)),
         lastPurchase: `Hoy ${sale.time}`,
         favoriteHouse: sale.house || 'Maison Alura',
+        lastFragrance: sale.fragranceName,
+        lastFormat: sale.format,
       };
       clients.push(client);
     }
@@ -181,6 +187,8 @@ export class SalesRepository {
           pending_balance: client.pendingBalance,
           last_purchase: client.lastPurchase,
           favorite_house: client.favoriteHouse,
+          last_fragrance: client.lastFragrance,
+          last_format: client.lastFormat,
           updated_at: new Date().toISOString(),
         })
         .then();
@@ -197,19 +205,20 @@ export class SalesRepository {
     LocalStorageAdapter.set(this.CLIENTS_KEY, clients);
   }
 
-  static addClient(clientData: {
+  static async addClient(clientData: {
     name: string;
     phone?: string;
     favoriteHouse?: string;
+    tier?: string;
     initialBalance?: number;
     notes?: string;
-  }): ClientProfile {
+  }): Promise<ClientProfile> {
     const clients = this.getClients();
     const newClient: ClientProfile = {
       id: `c-${Date.now()}`,
       name: clientData.name.trim(),
       code: `CLI-${Math.floor(100 + Math.random() * 900)}`,
-      tier: 'Cliente',
+      tier: clientData.tier?.trim() || 'Cliente',
       pendingBalance: Number(Number(clientData.initialBalance || 0).toFixed(2)),
       lastPurchase: 'Nuevo registro',
       favoriteHouse: clientData.favoriteHouse?.trim() || 'Maison Alura',
@@ -221,27 +230,66 @@ export class SalesRepository {
     this.saveClients(clients);
 
     try {
-      supabase
+      const { error } = await supabase
         .from('clients')
         .insert({
           id: newClient.id,
           name: newClient.name,
           code: newClient.code,
-          tier: 'Cliente',
+          tier: newClient.tier,
           pending_balance: newClient.pendingBalance,
           last_purchase: newClient.lastPurchase,
           favorite_house: newClient.favoriteHouse,
           phone: newClient.phone,
           notes: newClient.notes,
-        })
-        .then(({ error }) => {
-          if (error) console.warn('Supabase client insert error:', error);
         });
+      if (error) {
+        console.warn('Supabase client insert error:', error);
+      }
     } catch (e) {
       console.warn('Supabase client insert error:', e);
     }
 
     return newClient;
+  }
+
+  static async updateClient(updatedClient: ClientProfile): Promise<ClientProfile> {
+    const clients = this.getClients();
+    const idx = clients.findIndex((c) => c.id === updatedClient.id);
+    if (idx !== -1) {
+      clients[idx] = {
+        ...clients[idx],
+        ...updatedClient,
+        pendingBalance: Number(Number(updatedClient.pendingBalance || 0).toFixed(2)),
+      };
+      this.saveClients(clients);
+
+      try {
+        const { error } = await supabase
+          .from('clients')
+          .update({
+            name: updatedClient.name,
+            code: updatedClient.code,
+            tier: updatedClient.tier,
+            pending_balance: updatedClient.pendingBalance,
+            last_purchase: updatedClient.lastPurchase,
+            favorite_house: updatedClient.favoriteHouse,
+            last_fragrance: updatedClient.lastFragrance,
+            last_format: updatedClient.lastFormat,
+            phone: updatedClient.phone,
+            notes: updatedClient.notes,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', updatedClient.id);
+
+        if (error) {
+          console.warn('Supabase client update error:', error);
+        }
+      } catch (e) {
+        console.warn('Supabase client update error:', e);
+      }
+    }
+    return updatedClient;
   }
 
   static deleteClient(id: string): void {
@@ -252,6 +300,117 @@ export class SalesRepository {
     } catch (e) {
       console.warn('Supabase client delete error:', e);
     }
+  }
+
+  static deleteAbono(id: string): { client?: ClientProfile; revertedAmount: number } | null {
+    const abonos = this.getAbonos();
+    const abonoToDelete = abonos.find((a) => a.id === id);
+    if (!abonoToDelete) return null;
+
+    // 1. Eliminar de historial de abonos
+    const updatedAbonos = abonos.filter((a) => a.id !== id);
+    LocalStorageAdapter.set(this.ABONOS_KEY, updatedAbonos);
+
+    // 2. Eliminar del libro diario de ventas si estaba replicado
+    const sales = this.getAll().filter((s) => s.id !== id);
+    LocalStorageAdapter.set(this.STORAGE_KEY, sales);
+
+    // 3. Revertir saldo pendiente al cliente (restituir deuda)
+    const clients = this.getClients();
+    let updatedClient: ClientProfile | undefined;
+    const updatedClients = clients.map((c) => {
+      const matchId = abonoToDelete.clientId && c.id === abonoToDelete.clientId;
+      const matchName = c.name.toLowerCase() === abonoToDelete.clientName.toLowerCase();
+      if (matchId || matchName) {
+        const restoredBalance = Number((c.pendingBalance + abonoToDelete.amount).toFixed(2));
+        updatedClient = {
+          ...c,
+          pendingBalance: restoredBalance,
+        };
+        return updatedClient;
+      }
+      return c;
+    });
+    this.saveClients(updatedClients);
+
+    // 4. Sincronizar en Supabase
+    try {
+      supabase.from('abonos_transactions').delete().eq('id', id).then();
+      supabase.from('sales_transactions').delete().eq('id', id).then();
+      if (updatedClient) {
+        supabase
+          .from('clients')
+          .update({
+            pending_balance: updatedClient.pendingBalance,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', updatedClient.id)
+          .then();
+      }
+    } catch (e) {
+      console.warn('Supabase delete abono sync error:', e);
+    }
+
+    return { client: updatedClient, revertedAmount: abonoToDelete.amount };
+  }
+
+  static deleteSale(id: string): boolean {
+    const sales = this.getAll();
+    const saleToDelete = sales.find((s) => s.id === id);
+    if (!saleToDelete) return false;
+
+    // 1. Eliminar del listado de ventas
+    const updatedSales = sales.filter((s) => s.id !== id);
+    LocalStorageAdapter.set(this.STORAGE_KEY, updatedSales);
+
+    // 2. Si era un abono registrado con ID de abono
+    if (saleToDelete.id.startsWith('#AB-')) {
+      const updatedAbonos = this.getAbonos().filter((a) => a.id !== id);
+      LocalStorageAdapter.set(this.ABONOS_KEY, updatedAbonos);
+      try {
+        supabase.from('abonos_transactions').delete().eq('id', id).then();
+      } catch (e) {
+        console.warn('Supabase delete abono error:', e);
+      }
+    }
+
+    // 3. Si era una venta a crédito, revertir la deuda añadida al cliente
+    if (saleToDelete.paymentMethod === 'credit100' || saleToDelete.paymentMethod === 'credit50') {
+      const creditToRevert = saleToDelete.paymentMethod === 'credit100' ? saleToDelete.total : saleToDelete.total / 2;
+      const clients = this.getClients();
+      let affectedClient: ClientProfile | undefined;
+      const updatedClients = clients.map((c) => {
+        if (c.name.toLowerCase() === saleToDelete.clientName.toLowerCase()) {
+          affectedClient = {
+            ...c,
+            pendingBalance: Math.max(0, Number((c.pendingBalance - creditToRevert).toFixed(2))),
+          };
+          return affectedClient;
+        }
+        return c;
+      });
+      this.saveClients(updatedClients);
+      if (affectedClient) {
+        try {
+          supabase
+            .from('clients')
+            .update({ pending_balance: affectedClient.pendingBalance, updated_at: new Date().toISOString() })
+            .eq('id', affectedClient.id)
+            .then();
+        } catch (e) {
+          console.warn('Supabase client revert credit error:', e);
+        }
+      }
+    }
+
+    // 4. Supabase delete
+    try {
+      supabase.from('sales_transactions').delete().eq('id', id).then();
+    } catch (e) {
+      console.warn('Supabase sale delete error:', e);
+    }
+
+    return true;
   }
 
   static getAbonos(): AbonoTransaction[] {

@@ -15,10 +15,26 @@ export const AuditBalanceView: React.FC = () => {
   const [inputContado, setInputContado] = useState(drawerSummary.expectedTotal.toFixed(2));
   const [closingNotes, setClosingNotes] = useState(drawerSummary.closingNotes);
   const [notification, setNotification] = useState<string | null>(null);
+  const [movementToDelete, setMovementToDelete] = useState<any | null>(null);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3500);
+  };
+
+  const confirmDeleteMovement = () => {
+    if (!movementToDelete) return;
+    if (movementToDelete.id.startsWith('#AB-')) {
+      SalesRepository.deleteAbono(movementToDelete.id);
+    } else {
+      SalesRepository.deleteSale(movementToDelete.id);
+    }
+    setSalesList(SalesRepository.getAll());
+    setAbonosList(SalesRepository.getAbonos());
+    setClientsList(SalesRepository.getClients());
+    setDrawerSummary(AuditRepository.getDrawerSummary());
+    showNotification(`Movimiento "${movementToDelete.id}" eliminado del libro contable.`);
+    setMovementToDelete(null);
   };
 
   // 1. Data: Perfumes & Inventory stock
@@ -40,7 +56,8 @@ export const AuditBalanceView: React.FC = () => {
   const outOfStockFragrancesCount = useMemo(() => perfumes.filter((p) => p.stock === 0).length, [perfumes]);
 
   // 2. Data: Money pending to collect from clients (Cuentas por Cobrar)
-  const clients = useMemo(() => SalesRepository.getClients(), []);
+  const [clientsList, setClientsList] = useState(() => SalesRepository.getClients());
+  const clients = clientsList;
   const totalClientReceivable = useMemo(
     () => clients.reduce((acc, c) => acc + c.pendingBalance, 0),
     [clients]
@@ -60,19 +77,54 @@ export const AuditBalanceView: React.FC = () => {
   const totalPaidToSuppliers = useMemo(() => SupplierRepository.getTotalPaid(), []);
 
   // 4. Data: Sales & Cash expected
-  const sales = useMemo(() => SalesRepository.getAll(), []);
-  const totalSalesRevenue = useMemo(() => sales.reduce((acc, s) => acc + s.total, 0), [sales]);
-  const abonosHistory = useMemo(() => SalesRepository.getAbonos(), []);
+  const [salesList, setSalesList] = useState(() => SalesRepository.getAll());
+  const sales = salesList;
+  // Filtrar ventas auténticas de perfumes para métricas de catálogo y facturación
+  const productSales = useMemo(
+    () => sales.filter((s) => !s.id.startsWith('#AB-') && !s.fragranceName.toLowerCase().includes('abono')),
+    [sales]
+  );
+  const totalProductSales = useMemo(
+    () => productSales.reduce((acc, s) => acc + s.total, 0),
+    [productSales]
+  );
+
+  const [abonosList, setAbonosList] = useState(() => SalesRepository.getAbonos());
+  const abonosHistory = abonosList;
   const totalAbonosReceived = useMemo(
     () => abonosHistory.reduce((acc, a) => acc + a.amount, 0),
     [abonosHistory]
   );
+
+  // Entradas reales de dinero cobrado (contado de mostrador + cuotas 50% + abonos)
+  const totalCollectedInflow = useMemo(() => {
+    let inflow = 0;
+    for (const s of productSales) {
+      if (s.paymentMethod === 'credit100') continue;
+      if (s.paymentMethod === 'credit50') inflow += s.total / 2;
+      else inflow += s.total;
+    }
+    for (const a of abonosHistory) {
+      inflow += a.amount;
+    }
+    return Number(inflow.toFixed(2));
+  }, [productSales, abonosHistory]);
 
   // Dynamic calculation of expected money in store (Caja + Cuentas)
   const expectedTotal = drawerSummary.expectedTotal;
   const countedTotal = drawerSummary.countedTotal;
   const difference = drawerSummary.difference;
   const isBalanced = difference === 0;
+
+  // Estado dinámico y real de la cartera de clientes
+  const portfolioHealth = useMemo(() => {
+    if (clients.length === 0 || totalClientReceivable === 0) {
+      return '100% al día';
+    }
+    const clientsWithoutDebt = clients.filter((c) => c.pendingBalance <= 0).length;
+    const ratio = (clientsWithoutDebt / clients.length) * 100;
+    return `${ratio.toFixed(1)}% al día`;
+  }, [clients, totalClientReceivable]);
 
   // Projected Net Liquid Position
   const projectedNetLiquidity = expectedTotal + totalClientReceivable - totalSupplierPayable;
@@ -259,7 +311,7 @@ export const AuditBalanceView: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Estado de cartera:</span>
-                  <span className="text-[#2D5A27] font-semibold">98.2% puntual</span>
+                  <span className="text-[#2D5A27] font-semibold">{portfolioHealth}</span>
                 </div>
               </div>
             </div>
@@ -451,13 +503,13 @@ export const AuditBalanceView: React.FC = () => {
               <div className="p-3.5 bg-[#F0F5EE]/60 border border-[#2D5A27]/20">
                 <div className="flex items-center gap-1.5 text-[#2D5A27] text-xs font-bold uppercase mb-1">
                   <span className="material-symbols-outlined text-[16px]">trending_up</span>
-                  Entradas Totales
+                  Entradas Cobradas
                 </div>
                 <span className="font-mono text-xl font-bold text-[#2D5A27] block">
-                  +${totalSalesRevenue.toFixed(2)} USD
+                  +${totalCollectedInflow.toFixed(2)} USD
                 </span>
                 <span className="text-[10px] text-[#6E665F] mt-1 block">
-                  Ventas boutique + abonos recibidos
+                  Contado cobrado + abonos recibidos
                 </span>
               </div>
 
@@ -478,11 +530,11 @@ export const AuditBalanceView: React.FC = () => {
 
           <div className="p-3 bg-[#FAF8F5] border border-[#E6DED1] flex justify-between items-center text-xs">
             <div>
-              <span className="font-bold text-[#1A1817] block">Margen Operativo Bruto</span>
-              <span className="text-[11px] text-[#6E665F]">Diferencial de entradas netas vs costo de reposición</span>
+              <span className="font-bold text-[#1A1817] block">Flujo Operativo Neto</span>
+              <span className="text-[11px] text-[#6E665F]">Entradas cobradas menos pagos efectuados a empresas</span>
             </div>
             <span className="font-mono text-lg font-bold text-[#2D5A27]">
-              +${(totalSalesRevenue - totalPaidToSuppliers).toFixed(2)} USD
+              +${(totalCollectedInflow - totalPaidToSuppliers).toFixed(2)} USD
             </span>
           </div>
         </div>
@@ -501,21 +553,22 @@ export const AuditBalanceView: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-xs min-w-[980px] border-collapse">
             <thead>
-              <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase">
-                <th className="py-3 px-4 font-semibold">Folio / Fecha</th>
-                <th className="py-3 px-4 font-semibold">Tipo de Movimiento</th>
-                <th className="py-3 px-4 font-semibold">Cliente / Empresa</th>
-                <th className="py-3 px-4 font-semibold">Concepto / Detalle</th>
-                <th className="py-3 px-4 font-semibold">Método</th>
-                <th className="py-3 px-4 text-right font-semibold">Impacto en Caja</th>
+              <tr className="bg-[#F5F2EB] text-[#6E665F] font-label-md uppercase text-[10px] tracking-wider">
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Folio / Fecha</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Tipo de Movimiento</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Cliente / Empresa</th>
+                <th className="py-3.5 px-4 font-semibold">Concepto / Detalle</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Método</th>
+                <th className="py-3.5 px-4 text-right font-semibold whitespace-nowrap">Impacto en Caja</th>
+                <th className="py-3.5 px-4 text-center font-semibold whitespace-nowrap">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F5F2EB] text-[#2C2826]">
               {sales.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-[#6E665F]">
+                  <td colSpan={7} className="py-12 text-center text-[#6E665F]">
                     <span className="material-symbols-outlined text-4xl text-[#6E665F]/40 mb-2 block">
                       account_balance
                     </span>
@@ -528,32 +581,48 @@ export const AuditBalanceView: React.FC = () => {
               ) : (
                 sales.slice(0, 6).map((item) => (
                   <tr key={item.id} className="hover:bg-[#F5F2EB]/30 transition-colors">
-                    <td className="py-3 px-4 font-mono">
+                    <td className="py-3.5 px-4 font-mono whitespace-nowrap">
                       <span className="font-bold text-[#1A1817] block">{item.id}</span>
                       <span className="text-[10px] text-[#6E665F]">{item.date} {item.time}</span>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
                       {item.fragranceName.includes('Abono') ? (
-                        <span className="px-2 py-0.5 bg-[#FAF8F5] border border-[#c59b27]/30 text-[#775a00] font-bold text-[10px]">
+                        <span className="px-2 py-0.5 bg-[#FAF8F5] border border-[#c59b27]/30 text-[#775a00] font-bold text-[10px] whitespace-nowrap">
                           Abono Cliente
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 bg-[#F0F5EE] border border-[#2D5A27]/20 text-[#2D5A27] font-bold text-[10px]">
+                        <span className="px-2 py-0.5 bg-[#F0F5EE] border border-[#2D5A27]/20 text-[#2D5A27] font-bold text-[10px] whitespace-nowrap">
                           Venta Mostrador
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 font-semibold text-[#1A1817]">{item.clientName}</td>
-                    <td className="py-3 px-4 text-[#6E665F] max-w-xs truncate">
+                    <td className="py-3.5 px-4 font-semibold text-[#1A1817] whitespace-nowrap">{item.clientName}</td>
+                    <td className="py-3.5 px-4 text-[#6E665F] min-w-[180px] max-w-xs truncate">
                       {item.fragranceName} • {item.format}
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 bg-white border border-[#E6DED1] text-[10px] font-medium text-[#1A1817]">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <span className="px-2 py-0.5 bg-white border border-[#E6DED1] text-[10px] font-medium text-[#1A1817] whitespace-nowrap">
                         {item.paymentMethodLabel}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-sm text-[#2D5A27]">
-                      +${item.total.toFixed(2)} USD
+                    <td className="py-3.5 px-4 text-right font-mono font-bold text-xs sm:text-sm whitespace-nowrap">
+                      {item.paymentMethod === 'credit100' ? (
+                        <span className="text-[#946E19] font-medium">$0.00 (A crédito)</span>
+                      ) : item.paymentMethod === 'credit50' ? (
+                        <span className="text-[#2D5A27]">+${(item.total / 2).toFixed(2)} USD</span>
+                      ) : (
+                        <span className="text-[#2D5A27]">+${item.total.toFixed(2)} USD</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setMovementToDelete(item)}
+                        className="w-7 h-7 bg-[#FAF8F5] hover:bg-[#FAF0EF] text-[#6E665F] hover:text-[#8A2E2B] border border-[#E6DED1] hover:border-[#8A2E2B]/30 inline-flex items-center justify-center transition-colors cursor-pointer"
+                        title={`Eliminar movimiento ${item.id}`}
+                      >
+                        <span className="material-symbols-outlined text-[15px]">delete</span>
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -668,6 +737,45 @@ export const AuditBalanceView: React.FC = () => {
                 className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] rounded-none cursor-pointer shadow-xs text-center"
               >
                 Confirmar y Guardar Cuadre
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Eliminar Movimiento Financiero */}
+      {movementToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1A1817]/50 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-sm rounded-none shadow-2xl border border-[#E6DED1] p-5 animate-fadeIn">
+            <div className="flex items-center gap-2.5 text-[#8A2E2B] mb-2 pb-2 border-b border-[#FAF0EF]">
+              <span className="material-symbols-outlined text-2xl">delete_forever</span>
+              <h3 className="font-serif text-base font-bold text-[#1A1817]">¿Eliminar Movimiento?</h3>
+            </div>
+            <p className="text-xs text-[#6E665F] mb-3">
+              ¿Estás seguro de que deseas anular y borrar permanentemente el registro{' '}
+              <strong className="text-[#1A1817] font-mono">{movementToDelete.id}</strong> ({movementToDelete.clientName}) por{' '}
+              <strong className="font-mono text-[#1A1817]">${movementToDelete.total.toFixed(2)} USD</strong>?
+            </p>
+            <div className="p-2.5 mb-4 bg-[#FAF8F5] border border-[#E6DED1] text-[11px] text-[#6E665F] text-left">
+              <span className="font-semibold block text-[#1A1817]">Efecto contable automático:</span>
+              <span>
+                Se recalcularán el saldo esperado en caja y las cuentas por cobrar vinculadas a este movimiento.
+              </span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMovementToDelete(null)}
+                className="px-3.5 py-1.5 border border-[#E6DED1] text-xs font-semibold text-[#6E665F] hover:bg-[#FAF8F5] cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteMovement}
+                className="px-4 py-1.5 bg-[#8A2E2B] hover:bg-[#722624] text-white font-bold text-xs cursor-pointer shadow-xs"
+              >
+                Sí, Eliminar Movimiento
               </button>
             </div>
           </div>

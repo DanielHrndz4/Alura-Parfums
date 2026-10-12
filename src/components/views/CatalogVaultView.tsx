@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Perfume, OlfactoryFamily } from '../../types/perfume';
 import { CartItem } from '../../types/sale';
 import { PerfumeRepository } from '../../repositories/perfumeRepository';
@@ -24,11 +24,22 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
   onProceedCheckout,
 }) => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const allPerfumes = PerfumeRepository.getAll();
+
+  // Read URL query parameters
+  const genderParam = searchParams.get('gender');
+  const formatParam = searchParams.get('format');
+  const samplesParam = searchParams.get('samples');
+  const bestsellerParam = searchParams.get('bestsellers');
+  const queryParam = searchParams.get('q') || '';
+  const sortParam = searchParams.get('sort');
 
   // Filters State
   const [selectedGender, setSelectedGender] = useState<'all' | 'fem' | 'masc'>('all');
-  const [inStockOnly, setInStockOnly] = useState(true);
+  const [selectedFormat, setSelectedFormat] = useState<'all' | '50ml' | '100ml'>('all');
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [bestsellerOnly, setBestsellerOnly] = useState(false);
   const [soldoutOnly, setSoldoutOnly] = useState(false);
   const [samplesOnly, setSamplesOnly] = useState(false);
   const [maxPrice, setMaxPrice] = useState(60);
@@ -36,6 +47,39 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
   const [selectedFamilies, setSelectedFamilies] = useState<OlfactoryFamily[]>([]);
   const [sortBy, setSortBy] = useState('popular');
   const [complimentarySample, setComplimentarySample] = useState('Lancôme La Vie Est Belle (2ml VIAL)');
+
+  // Sync state whenever URL query parameters change (e.g. from NavigationBar)
+  useEffect(() => {
+    if (genderParam === 'fem' || genderParam === 'masc') {
+      setSelectedGender(genderParam);
+    } else {
+      setSelectedGender('all');
+    }
+
+    if (formatParam === '50ml' || formatParam === '100ml') {
+      setSelectedFormat(formatParam);
+    } else {
+      setSelectedFormat('all');
+    }
+
+    if (samplesParam === 'true') {
+      setSamplesOnly(true);
+    } else {
+      setSamplesOnly(false);
+    }
+
+    if (bestsellerParam === 'true') {
+      setBestsellerOnly(true);
+    } else {
+      setBestsellerOnly(false);
+    }
+
+    if (sortParam) {
+      setSortBy(sortParam);
+    }
+
+    setCurrentPage(1);
+  }, [genderParam, formatParam, samplesParam, bestsellerParam, sortParam, queryParam]);
 
   // Pagination & Detail Modal State
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,16 +90,37 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
   // Active filters count for mobile indicator
   const activeFiltersCount =
     (selectedGender !== 'all' ? 1 : 0) +
+    (selectedFormat !== 'all' ? 1 : 0) +
     selectedBrands.length +
     selectedFamilies.length +
     (maxPrice < 60 ? 1 : 0) +
-    (!inStockOnly ? 1 : 0) +
+    (inStockOnly ? 1 : 0) +
+    (bestsellerOnly ? 1 : 0) +
     (soldoutOnly ? 1 : 0) +
-    (samplesOnly ? 1 : 0);
+    (queryParam ? 1 : 0);
 
-  // Reset pagination on filter changes
+  // Reset pagination on filter changes & sync with URL
   const handleGenderChange = (gender: 'all' | 'fem' | 'masc') => {
     setSelectedGender(gender);
+    const newParams = new URLSearchParams(searchParams);
+    if (gender === 'all') {
+      newParams.delete('gender');
+    } else {
+      newParams.set('gender', gender);
+    }
+    setSearchParams(newParams);
+    setCurrentPage(1);
+  };
+
+  const handleFormatChange = (fmt: 'all' | '50ml' | '100ml') => {
+    setSelectedFormat(fmt);
+    const newParams = new URLSearchParams(searchParams);
+    if (fmt === 'all') {
+      newParams.delete('format');
+    } else {
+      newParams.set('format', fmt);
+    }
+    setSearchParams(newParams);
     setCurrentPage(1);
   };
 
@@ -66,11 +131,6 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
 
   const handleSoldoutChange = (checked: boolean) => {
     setSoldoutOnly(checked);
-    setCurrentPage(1);
-  };
-
-  const handleSamplesChange = (checked: boolean) => {
-    setSamplesOnly(checked);
     setCurrentPage(1);
   };
 
@@ -95,24 +155,47 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
 
   const handleResetFilters = () => {
     setSelectedGender('all');
-    setInStockOnly(true);
+    setSelectedFormat('all');
+    setInStockOnly(false);
+    setBestsellerOnly(false);
     setSoldoutOnly(false);
-    setSamplesOnly(false);
     setMaxPrice(60);
     setSelectedBrands([]);
     setSelectedFamilies([]);
     setSortBy('popular');
+    setSearchParams(new URLSearchParams());
     setCurrentPage(1);
   };
 
   // Filtered & Sorted List
   const filteredPerfumes = useMemo(() => {
     let result = allPerfumes.filter((item) => {
+      // Search text query
+      if (queryParam) {
+        const q = queryParam.toLowerCase().trim();
+        const matchesName = (item.name || '').toLowerCase().includes(q);
+        const matchesHouse = (item.house || '').toLowerCase().includes(q);
+        const matchesFamily = (item.family || '').toLowerCase().includes(q);
+        const matchesNotes =
+          item.notes?.top?.some((n) => n.toLowerCase().includes(q)) ||
+          item.notes?.heart?.some((n) => n.toLowerCase().includes(q)) ||
+          item.notes?.base?.some((n) => n.toLowerCase().includes(q));
+        const matchesAccords = item.accords?.some((a) => a.name.toLowerCase().includes(q));
+
+        if (!matchesName && !matchesHouse && !matchesFamily && !matchesNotes && !matchesAccords) {
+          return false;
+        }
+      }
+
       // Price
       if (item.price > maxPrice) return false;
 
       // Gender
       if (selectedGender !== 'all' && item.gender !== selectedGender) return false;
+
+      // Format (50ml / 100ml)
+      if (selectedFormat === '50ml' && !item.format.toLowerCase().includes('50ml')) return false;
+      if (selectedFormat === '100ml' && !item.format.toLowerCase().includes('100ml')) return false;
 
       // Brand
       if (selectedBrands.length > 0 && !selectedBrands.includes(item.house)) return false;
@@ -120,26 +203,30 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
       // Olfactory Family
       if (selectedFamilies.length > 0 && !selectedFamilies.includes(item.family)) return false;
 
-      // Stock
+      // Delivery Status
       if (inStockOnly && !soldoutOnly && item.stock === 0) return false;
       if (soldoutOnly && !inStockOnly && item.stock > 0) return false;
 
-      // Samples
-      if (samplesOnly && !item.hasSample) return false;
+      // Más Vendidos
+      if (bestsellerOnly && !item.isBestseller) return false;
 
       return true;
     });
 
-    if (sortBy === 'price-asc') {
+    if (sortBy === 'popular' || sortBy === 'bestseller') {
+      result.sort((a, b) => (b.isBestseller ? 1 : 0) - (a.isBestseller ? 1 : 0));
+    } else if (sortBy === 'price-asc') {
       result.sort((a, b) => a.price - b.price);
     } else if (sortBy === 'price-desc') {
       result.sort((a, b) => b.price - a.price);
+    } else if (sortBy === 'name-asc') {
+      result.sort((a, b) => a.name.localeCompare(b.name));
     } else if (sortBy === 'stock') {
       result.sort((a, b) => b.stock - a.stock);
     }
 
     return result;
-  }, [allPerfumes, maxPrice, selectedGender, selectedBrands, selectedFamilies, inStockOnly, soldoutOnly, samplesOnly, sortBy]);
+  }, [allPerfumes, maxPrice, selectedGender, selectedFormat, selectedBrands, selectedFamilies, inStockOnly, bestsellerOnly, soldoutOnly, sortBy, queryParam]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredPerfumes.length / itemsPerPage) || 1;
@@ -149,79 +236,14 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
     return filteredPerfumes.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredPerfumes, currentPage, itemsPerPage]);
 
-  // Cart Calculations
-  const cartSubtotal = cartItems.reduce((acc, curr) => acc + curr.price * curr.quantity, 0);
-
   return (
     <div className="flex flex-col w-full relative">
-      {/* Sub-Header Atelier Banner */}
-      <section className="relative w-full bg-[#F5F2EB] px-4 md:px-8 lg:px-12 py-10 overflow-hidden shadow-sm border-b border-[#E6DED1]">
-        <div className="absolute -right-20 -top-24 w-96 h-96 rounded-full bg-[#775a00]/5 blur-3xl pointer-events-none"></div>
-        <div className="absolute left-1/3 -bottom-20 w-80 h-80 rounded-full bg-[#B8860B]/5 blur-2xl pointer-events-none"></div>
-
-        <div className="max-w-[1440px] mx-auto flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
-          <div className="space-y-1 max-w-2xl">
-            <div className="flex items-center gap-2 text-[#B8860B] font-label-sm text-label-sm uppercase tracking-[0.2em] text-xs font-bold">
-              <span className="inline-block w-2 h-2 rounded-full bg-[#B8860B] animate-pulse"></span>
-              <span>Inventario Real • Salons Vendôme • Mayfair</span>
-            </div>
-            <h1 className="font-headline-lg text-[#1A1817] tracking-tight font-serif text-3xl md:text-4xl font-semibold">
-              Catálogo General &amp; Colección Atelier
-            </h1>
-            <p className="font-body-md text-[#6E665F] text-sm">
-              Selección viva de extractos y frascos custodiados en vitrinas climatizadas. Cada ejemplar incluye certificado de sellado y maceración verificada.
-            </p>
-
-            {/* Value badges: Mismo Olor • Mayor Duración • Más Barato */}
-            <div className="flex flex-wrap items-center gap-2 pt-2">
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#775a00] bg-white/90 px-3 py-1 rounded-full border border-[#E6DED1] shadow-2xs">
-                <span className="material-symbols-outlined text-[14px]">sync</span>
-                <span>Mismo Olor 1:1</span>
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#775a00] bg-white/90 px-3 py-1 rounded-full border border-[#E6DED1] shadow-2xs">
-                <span className="material-symbols-outlined text-[14px]">schedule</span>
-                <span>Mayor Duración (+8-12h)</span>
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#2D5A27] bg-[#F0F5EE] px-3 py-1 rounded-full border border-[#2D5A27]/20 shadow-2xs">
-                <span className="material-symbols-outlined text-[14px]">savings</span>
-                <span>Capacidades de 50ml y 100ml a Precio Directo</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="bg-white px-6 py-4 rounded-lg shadow-sm flex items-center gap-4 border border-[#E6DED1]">
-              <div className="w-10 h-10 rounded-full bg-[#F0F5EE] flex items-center justify-center text-[#2D5A27]">
-                <span className="material-symbols-outlined text-[20px]">inventory_2</span>
-              </div>
-              <div>
-                <div className="font-title-md text-[#1A1817] flex items-center gap-1 text-sm font-semibold">
-                  <span>{allPerfumes.length}</span>
-                  <span className="font-body-sm text-[#6E665F] font-normal text-xs">Fragancias Curadas</span>
-                </div>
-                <div className="font-label-sm text-[#2D5A27] uppercase font-bold tracking-wider text-[10px]">
-                  {allPerfumes.filter((p) => p.stock > 0).length} Disponibles para Envío Inmediato
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={onOpenCart}
-              className="bg-[#775a00] text-white hover:bg-[#B8860B] px-6 py-4 rounded-lg shadow-sm transition-all flex items-center gap-2 font-label-md uppercase tracking-wider text-xs font-semibold cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-              <span>Bolsa Activa ({cartItems.length})</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
       {/* Main Storefront Section */}
       <section className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-10 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* Filter Sidebar (Col 1-4 on LG, 1-3 on XL) */}
           <aside className={`lg:col-span-4 xl:col-span-3 space-y-6 ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm space-y-6 sticky top-48 border border-[#E6DED1]">
+            <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm space-y-6 sticky top-24 border border-[#E6DED1]">
               <div className="flex items-center justify-between pb-2 bg-[#F5F2EB]/50 p-2 rounded-lg border border-[#E6DED1]/50">
                 <span className="font-title-md text-[#1A1817] flex items-center gap-1 text-xs font-semibold">
                   <span className="material-symbols-outlined text-[18px] text-[#B8860B]">tune</span>
@@ -295,10 +317,65 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                 </div>
               </div>
 
-              {/* Disponibilidad */}
+              {/* Presentación & Precio */}
               <div>
                 <h2 className="font-label-md uppercase tracking-wider text-[#2C2826] mb-2 text-xs font-semibold">
-                  Disponibilidad en Vitrina
+                  Presentación &amp; Precio
+                </h2>
+                <div className="space-y-1">
+                  <label className="flex items-center justify-between p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer transition-colors text-xs">
+                    <span className="flex items-center gap-2 text-[#1A1817]">
+                      <input
+                        checked={selectedFormat === 'all'}
+                        onChange={() => handleFormatChange('all')}
+                        className="accent-[#775a00]"
+                        name="format"
+                        type="radio"
+                        value="all"
+                      />
+                      Todos los Frascos
+                    </span>
+                    <span className="font-mono text-[#6E665F] text-[11px]">{allPerfumes.length}</span>
+                  </label>
+                  <label className="flex items-center justify-between p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer transition-colors text-xs">
+                    <span className="flex items-center gap-2 text-[#1A1817]">
+                      <input
+                        checked={selectedFormat === '50ml'}
+                        onChange={() => handleFormatChange('50ml')}
+                        className="accent-[#775a00]"
+                        name="format"
+                        type="radio"
+                        value="50ml"
+                      />
+                      50ml ($10 USD)
+                    </span>
+                    <span className="font-mono text-[#775a00] font-semibold text-[11px]">
+                      {allPerfumes.filter((p) => p.format.toLowerCase().includes('50ml')).length}
+                    </span>
+                  </label>
+                  <label className="flex items-center justify-between p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer transition-colors text-xs">
+                    <span className="flex items-center gap-2 text-[#1A1817]">
+                      <input
+                        checked={selectedFormat === '100ml'}
+                        onChange={() => handleFormatChange('100ml')}
+                        className="accent-[#775a00]"
+                        name="format"
+                        type="radio"
+                        value="100ml"
+                      />
+                      100ml ($15 USD)
+                    </span>
+                    <span className="font-mono text-[#775a00] font-semibold text-[11px]">
+                      {allPerfumes.filter((p) => p.format.toLowerCase().includes('100ml')).length}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Estado de Entrega & Colección */}
+              <div>
+                <h2 className="font-label-md uppercase tracking-wider text-[#2C2826] mb-2 text-xs font-semibold">
+                  Disponibilidad &amp; Vitrina
                 </h2>
                 <div className="space-y-1">
                   <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer text-xs">
@@ -308,9 +385,26 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                       className="accent-[#775a00] rounded"
                       type="checkbox"
                     />
-                    <span className="text-[#1A1817] flex-1">En Stock Inmediato</span>
+                    <span className="text-[#1A1817] flex-1 font-medium">Disponibles (Inmediato)</span>
                     <span className="font-label-sm text-[10px] px-1.5 py-0.5 rounded bg-[#F0F5EE] text-[#2D5A27]">
-                      11
+                      {allPerfumes.filter((p) => p.stock > 0).length}
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer text-xs">
+                    <input
+                      checked={bestsellerOnly}
+                      onChange={(e) => {
+                        setBestsellerOnly(e.target.checked);
+                        setCurrentPage(1);
+                      }}
+                      className="accent-[#c59b27] rounded"
+                      type="checkbox"
+                    />
+                    <span className="text-[#1A1817] flex-1 font-semibold flex items-center gap-1 text-[#775a00]">
+                      <span className="text-[#c59b27]">★</span> Más Vendidos
+                    </span>
+                    <span className="font-label-sm text-[10px] px-1.5 py-0.5 rounded bg-[#FDF8EA] text-[#946E19] font-bold">
+                      {allPerfumes.filter((p) => p.isBestseller).length}
                     </span>
                   </label>
                   <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer text-xs">
@@ -320,21 +414,9 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                       className="accent-[#775a00] rounded"
                       type="checkbox"
                     />
-                    <span className="text-[#1A1817] flex-1">Lista de Espera / Pre-orden</span>
+                    <span className="text-[#1A1817] flex-1">Bajo Pedido Especial</span>
                     <span className="font-label-sm text-[10px] px-1.5 py-0.5 rounded bg-[#FDF8EA] text-[#946E19]">
-                      4
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer text-xs">
-                    <input
-                      checked={samplesOnly}
-                      onChange={(e) => handleSamplesChange(e.target.checked)}
-                      className="accent-[#775a00] rounded"
-                      type="checkbox"
-                    />
-                    <span className="text-[#1A1817] flex-1">Con Muestra / Tester</span>
-                    <span className="font-label-sm text-[10px] px-1.5 py-0.5 rounded bg-[#F5F2EB] text-[#B8860B]">
-                      4
+                      {allPerfumes.filter((p) => p.stock === 0).length}
                     </span>
                   </label>
                 </div>
@@ -439,40 +521,185 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
           {/* Main Catalog Grid */}
           <main className="lg:col-span-8 xl:col-span-9 space-y-6">
             {/* Top Toolbar */}
-            <div className="bg-white p-3.5 sm:p-4 rounded-xl shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 border border-[#E6DED1]">
-              <div className="flex items-center justify-between sm:justify-start gap-3 text-xs">
-                <div className="flex items-center gap-2">
+            <div className="bg-white p-3.5 sm:p-4 rounded-xl shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4 border border-[#E6DED1]">
+              {/* Left: Fragrance Count & Active Filter Tags */}
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-xs">
+                <div className="flex items-center gap-1.5">
                   <span className="text-[#6E665F]">Mostrando:</span>
-                  <span className="font-mono text-[#1A1817] font-bold">
-                    {filteredPerfumes.length} Piezas Maestras
+                  <span className="font-bold text-[#1A1817] text-sm">
+                    {filteredPerfumes.length}
+                  </span>
+                  <span className="text-[#6E665F]">
+                    {filteredPerfumes.length === 1 ? 'fragancia' : 'fragancias'}
                   </span>
                 </div>
 
+                {/* Active filter badges */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {selectedGender !== 'all' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#FAF8F5] border border-[#c59b27]/60 text-[#775a00] rounded-full text-[11px] font-medium">
+                      <span>{selectedGender === 'fem' ? 'Mujer' : 'Hombre'}</span>
+                      <button
+                        onClick={() => handleGenderChange('all')}
+                        className="hover:text-red-700 cursor-pointer font-bold leading-none text-xs ml-0.5"
+                        title="Quitar filtro"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+
+                  {selectedFormat !== 'all' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#FAF8F5] border border-[#c59b27]/60 text-[#775a00] rounded-full text-[11px] font-medium">
+                      <span>{selectedFormat === '50ml' ? '50ml ($10)' : '100ml ($15)'}</span>
+                      <button
+                        onClick={() => handleFormatChange('all')}
+                        className="hover:text-red-700 cursor-pointer font-bold leading-none text-xs ml-0.5"
+                        title="Quitar filtro"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+
+                  {queryParam && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#FAF8F5] border border-[#c59b27]/60 text-[#775a00] rounded-full text-[11px] font-medium">
+                      <span>"{queryParam}"</span>
+                      <button
+                        onClick={() => {
+                          const newParams = new URLSearchParams(searchParams);
+                          newParams.delete('q');
+                          setSearchParams(newParams);
+                        }}
+                        className="hover:text-red-700 cursor-pointer font-bold leading-none text-xs ml-0.5"
+                        title="Borrar búsqueda"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+
+                  {selectedBrands.map((brand) => (
+                    <span
+                      key={brand}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#FAF8F5] border border-[#E6DED1] text-[#2C2826] rounded-full text-[11px]"
+                    >
+                      <span>{brand}</span>
+                      <button
+                        onClick={() => handleBrandToggle(brand)}
+                        className="hover:text-red-700 cursor-pointer font-bold leading-none text-xs ml-0.5"
+                        title="Quitar marca"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+
+                  {inStockOnly && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#F0F5EE] border border-[#2D5A27]/30 text-[#2D5A27] rounded-full text-[11px] font-medium">
+                      <span>Disponibles</span>
+                      <button
+                        onClick={() => handleInStockChange(false)}
+                        className="hover:text-red-700 cursor-pointer font-bold leading-none text-xs ml-0.5"
+                        title="Quitar filtro"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+
+                  {bestsellerOnly && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#FDF8EA] border border-[#c59b27]/40 text-[#775a00] rounded-full text-[11px] font-medium">
+                      <span>★ Más Vendidos</span>
+                      <button
+                        onClick={() => {
+                          setBestsellerOnly(false);
+                          setCurrentPage(1);
+                        }}
+                        className="hover:text-red-700 cursor-pointer font-bold leading-none text-xs ml-0.5"
+                        title="Quitar filtro"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+
+                  {activeFiltersCount > 0 && (
+                    <button
+                      onClick={handleResetFilters}
+                      className="text-[11px] text-[#B8860B] hover:text-[#775a00] hover:underline cursor-pointer ml-1 font-semibold"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile Filter Button */}
                 <button
                   onClick={() => setShowMobileFilters(!showMobileFilters)}
-                  className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F2EB] hover:bg-[#eae1d4] border border-[#E6DED1] rounded-lg text-xs font-semibold text-[#1A1817] cursor-pointer"
+                  className="lg:hidden ml-auto flex items-center gap-1.5 px-3 py-1 bg-[#F5F2EB] hover:bg-[#eae1d4] border border-[#E6DED1] rounded-lg text-xs font-semibold text-[#1A1817] cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[16px] text-[#B8860B]">tune</span>
                   <span>Filtros {activeFiltersCount > 0 ? `(${activeFiltersCount})` : ''}</span>
-                  <span className="material-symbols-outlined text-[16px]">{showMobileFilters ? 'expand_less' : 'expand_more'}</span>
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end text-xs">
-                <label className="text-[#6E665F] whitespace-nowrap">Ordenar por:</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => {
-                    setSortBy(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="flex-1 sm:flex-none bg-[#F5F2EB] text-[#1A1817] px-3 py-1.5 rounded-lg outline-none cursor-pointer border border-[#E6DED1]"
-                >
-                  <option value="popular">Más Populares (Atelier)</option>
-                  <option value="price-asc">Precio: Menor a Mayor</option>
-                  <option value="price-desc">Precio: Mayor a Menor</option>
-                  <option value="stock">Disponibilidad Inmediata</option>
-                </select>
+              {/* Right: Quick Format Pills & Sort Dropdown */}
+              <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end text-xs">
+                {/* Quick Size Toggle */}
+                <div className="hidden sm:flex items-center bg-[#F5F2EB] p-0.5 rounded-lg border border-[#E6DED1]">
+                  <button
+                    type="button"
+                    onClick={() => handleFormatChange('all')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                      selectedFormat === 'all'
+                        ? 'bg-white text-[#1A1817] shadow-xs'
+                        : 'text-[#6E665F] hover:text-[#1A1817]'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFormatChange('50ml')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                      selectedFormat === '50ml'
+                        ? 'bg-[#775a00] text-white shadow-xs font-bold'
+                        : 'text-[#6E665F] hover:text-[#1A1817]'
+                    }`}
+                  >
+                    50ml ($10)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFormatChange('100ml')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                      selectedFormat === '100ml'
+                        ? 'bg-[#775a00] text-white shadow-xs font-bold'
+                        : 'text-[#6E665F] hover:text-[#1A1817]'
+                    }`}
+                  >
+                    100ml ($15)
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 ml-auto md:ml-0">
+                  <label className="text-[#6E665F] whitespace-nowrap text-xs">Ordenar:</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => {
+                      setSortBy(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-[#F5F2EB] text-[#1A1817] px-3 py-1.5 rounded-lg outline-none cursor-pointer border border-[#E6DED1] text-xs font-medium"
+                  >
+                    <option value="popular">★ Más Vendidos / Populares</option>
+                    <option value="price-asc">Menor Precio ($10 primero)</option>
+                    <option value="price-desc">Mayor Precio ($15 primero)</option>
+                    <option value="name-asc">Nombre (A - Z)</option>
+                    <option value="stock">Entrega Inmediata</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -491,12 +718,10 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                   onClick={() => navigate(`/product/${perfume.id}`)}
                   className="product-card group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between border border-[#E6DED1]/70 hover:border-[#c59b27]/40 cursor-pointer"
                 >
-                  <div className="relative w-full aspect-square bg-[#F5F2EB] overflow-hidden">
+                  <div className="relative w-full aspect-square bg-white overflow-hidden">
                     <img
-                      className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out ${
-                        perfume.stock === 0 ? 'opacity-70 grayscale-[20%]' : ''
-                      }`}
-                      alt={perfume.imageAlt}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out select-none"
+                      alt={perfume.imageAlt || perfume.name}
                       src={perfume.imageUrl}
                       referrerPolicy="no-referrer"
                     />
@@ -543,20 +768,9 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                       </div>
 
                       {/* Sub-tag de propuesta de valor */}
-                      <div className="flex items-center justify-between text-[10px] text-[#775a00] bg-[#FAF8F5] px-2.5 py-1 rounded-md border border-[#E6DED1]/60">
-                        <span className="font-medium flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[13px] text-[#B8860B]">verified</span>
-                          <span>Inspiración 1:1 • Alta Fijación</span>
-                        </span>
-                        {perfume.stock > 0 ? (
-                          <span className="text-[#2D5A27] font-bold text-[9px] bg-[#F0F5EE] px-2 py-0.5 rounded">
-                            Disponible
-                          </span>
-                        ) : (
-                          <span className="text-[#8A2E2B] font-semibold text-[9px] bg-[#FAF0EF] px-2 py-0.5 rounded">
-                            Preguntar por existencias
-                          </span>
-                        )}
+                      <div className="flex items-center gap-1.5 text-[10px] text-[#775a00] bg-[#FAF8F5] px-2.5 py-1 rounded-md border border-[#E6DED1]/60">
+                        <span className="material-symbols-outlined text-[13px] text-[#B8860B]">verified</span>
+                        <span className="font-medium">Inspiración 1:1 • Alta Fijación</span>
                       </div>
 
                       {perfume.stock > 0 ? (
@@ -574,13 +788,13 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const msg = encodeURIComponent(`Hola, quisiera preguntar por existencias del perfume ${perfume.name} (${perfume.house})`);
+                            const msg = encodeURIComponent(`Hola Alura Parfums, quisiera solicitar bajo encargo el perfume ${perfume.name} (${perfume.house}).`);
                             window.open(`https://wa.me/?text=${msg}`, '_blank');
                           }}
-                          className="w-full bg-[#F5F2EB] hover:bg-[#eae1d4] text-[#775a00] font-label-md uppercase tracking-wider py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer border border-[#E6DED1]"
+                          className="w-full bg-[#FAF8F5] hover:bg-[#F5F2EB] text-[#775a00] font-label-md uppercase tracking-wider py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer border border-[#c59b27]/40 shadow-xs"
                         >
                           <span className="material-symbols-outlined text-[16px]">chat</span>
-                          <span>Preguntar por Existencias</span>
+                          <span>Pedir por Encargo</span>
                         </button>
                       )}
                     </div>
