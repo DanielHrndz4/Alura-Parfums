@@ -5,6 +5,8 @@ interface SidebarProps {
   onNavigate: (view: string) => void;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -12,6 +14,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   isOpenMobile,
   onCloseMobile,
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
   const navItems = [
     {
@@ -57,38 +61,60 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed left-0 top-0 h-full w-72 bg-[#f5f3ef] shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between py-6 transition-transform duration-300 ${
+        className={`fixed left-0 top-0 h-full bg-[#f5f3ef] shadow-2xl lg:shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between py-6 border-r border-[#E6DED1] transition-all duration-300 ease-in-out w-72 max-w-[85vw] ${
+          isCollapsed ? 'lg:w-20' : 'lg:w-72'
+        } ${
           isOpenMobile ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
+        {/* Expand / Collapse Floating Toggle Button (Desktop) */}
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            title={isCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}
+            className="hidden lg:flex absolute -right-3.5 top-7 w-7 h-7 bg-white border border-[#E6DED1] rounded-full items-center justify-center text-[#775a00] hover:bg-[#F5F2EB] shadow-xs cursor-pointer z-50 transition-all hover:scale-110"
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              {isCollapsed ? 'chevron_right' : 'chevron_left'}
+            </span>
+          </button>
+        )}
+
         <div className="flex flex-col">
-          {/* Logo */}
-          <div className="px-6 mb-8 flex items-center justify-between">
+          {/* Logo Header */}
+          <div
+            className={`mb-8 flex items-center transition-all px-5 sm:px-6 justify-between ${
+              isCollapsed ? 'lg:px-0 lg:justify-center' : ''
+            }`}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-[#F5F2EB] border border-[#E6DED1]/60 flex items-center justify-center text-[#775a00] shadow-sm">
-                <span className="material-symbols-outlined text-[20px]">spa</span>
+              <div
+                className="w-10 h-10 rounded-xl bg-[#F5F2EB] flex items-center justify-center text-[#775a00] shadow-xs shrink-0 cursor-pointer"
+                onClick={onToggleCollapse}
+                title={isCollapsed ? 'Expandir menú lateral' : 'Alura parfums'}
+              >
+                <img src="/images/logo.png" alt="Alura parfums" />
               </div>
-              <div>
-                <h1 className="font-headline-md text-headline-md tracking-tight text-[#1A1817] leading-none font-serif text-xl font-semibold">
-                  Alura
+              <div className={`overflow-hidden whitespace-nowrap ${isCollapsed ? 'lg:hidden' : 'block'}`}>
+                <h1 className="tracking-tight text-[#1A1817] leading-none font-serif text-xl font-bold">
+                  Alura Parfums
                 </h1>
-                <p className="font-label-sm text-label-sm uppercase tracking-widest text-[#6E665F] mt-1 text-[10px]">
-                  Haute Parfumerie
-                </p>
               </div>
             </div>
+
             {onCloseMobile && (
               <button
                 onClick={onCloseMobile}
-                className="lg:hidden text-[#6E665F] hover:text-[#1A1817]"
+                className="lg:hidden text-[#6E665F] hover:text-[#1A1817] p-1.5 rounded-md hover:bg-[#E6DED1]/50 cursor-pointer"
+                title="Cerrar menú"
               >
-                <span className="material-symbols-outlined text-[20px]">close</span>
+                <span className="material-symbols-outlined text-[22px]">close</span>
               </button>
             )}
           </div>
 
           {/* Navigation Items */}
-          <nav className="px-3 space-y-1.5 flex flex-col">
+          <nav className={`space-y-1.5 flex flex-col px-3 ${isCollapsed ? 'lg:px-2' : ''}`}>
             {navItems.map((item) => {
               const isActive = currentView === item.id || currentView === item.aliasKey;
               return (
@@ -98,58 +124,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onNavigate(item.id);
                     if (onCloseMobile) onCloseMobile();
                   }}
-                  className={`flex items-center gap-3 px-3.5 py-3 rounded-lg text-left transition-all group ${
+                  title={isCollapsed ? item.label : undefined}
+                  className={`flex items-center rounded-xl transition-all group cursor-pointer gap-3 px-3.5 py-3 text-left w-full ${
+                    isCollapsed
+                      ? 'lg:justify-center lg:w-12 lg:h-12 lg:mx-auto lg:p-0'
+                      : ''
+                  } ${
                     isActive
-                      ? 'bg-[#F5F2EB] text-[#775a00] font-title-md shadow-[0_1px_8px_rgba(0,0,0,0.04)] border border-[#c59b27]/30'
+                      ? 'bg-[#F5F2EB] text-[#775a00] font-semibold shadow-xs border border-[#c59b27]/40'
                       : 'text-[#4e4635] hover:bg-[#F5F2EB] hover:text-[#1b1c1a]'
                   }`}
                 >
                   <span
-                    className={`material-symbols-outlined text-[20px] transition-colors ${
+                    className={`material-symbols-outlined text-[20px] transition-colors shrink-0 ${
                       isActive ? 'text-[#775a00]' : 'text-[#635e54] group-hover:text-[#775a00]'
                     }`}
                   >
                     {item.icon}
                   </span>
-                  <span className="font-body-sm text-body-sm tracking-wide text-[13px]">
+                  <span className={`text-xs font-medium tracking-wide truncate ${isCollapsed ? 'lg:hidden' : 'block'}`}>
                     {item.label}
                   </span>
                 </button>
               );
             })}
           </nav>
-        </div>
-
-        {/* Footer info in sidebar */}
-        <div className="px-6 pt-6 border-t border-[#E6DED1]/50">
-          <button
-            onClick={() => onNavigate('storefront')}
-            className="w-full mb-3 py-2 px-3 rounded-lg bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[16px]">storefront</span>
-            <span>Ver Tienda Online</span>
-          </button>
-
-          <div className="p-3.5 rounded-lg bg-[#F5F2EB]/80 backdrop-blur-xl mb-4 border border-[#E6DED1]/60">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="font-label-sm text-label-sm uppercase tracking-wider text-[#6E665F] text-[10px]">
-                Atelier State
-              </span>
-              <span className="w-2 h-2 rounded-full bg-[#2D5A27] animate-pulse"></span>
-            </div>
-            <p className="font-body-sm text-body-sm text-[#2C2826] font-medium text-xs">
-              Place Vendôme N° 12
-            </p>
-            <p className="font-label-sm text-label-sm text-[#6E665F] mt-0.5 text-[10px]">
-              Salón Privé Operativo
-            </p>
-          </div>
-
-          <div className="text-center">
-            <p className="font-label-sm text-label-sm tracking-widest uppercase text-[#6E665F] opacity-80 text-[9px]">
-              Maison Alura • Place Vendôme • Édit. 2024
-            </p>
-          </div>
         </div>
       </aside>
     </>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Perfume } from './types/perfume';
 import { CartItem } from './types/sale';
@@ -6,6 +6,13 @@ import { NavigationBar } from './components/common/NavigationBar';
 import { Sidebar } from './components/common/Sidebar';
 import { TopHeader } from './components/common/TopHeader';
 import { Footer } from './components/common/Footer';
+import { CartDrawer } from './components/common/CartDrawer';
+
+// Repositories for live Supabase synchronization
+import { PerfumeRepository } from './repositories/perfumeRepository';
+import { SalesRepository } from './repositories/salesRepository';
+import { SupplierRepository } from './repositories/supplierRepository';
+import { AuditRepository } from './repositories/auditRepository';
 
 // Views
 import { StorefrontView } from './components/views/StorefrontView';
@@ -56,35 +63,52 @@ const routeMap: Record<string, string> = {
   proveedores: '/admin/suppliers',
 };
 
+import { purgeMockData } from './db/supabaseClient';
+
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Shopping cart state
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: 'cart-init-1',
-      perfumeId: 'p-1',
-      name: 'Valentino Donna Born in Roma',
-      house: 'Valentino',
-      format: '100ml EDP',
-      price: 60.0,
-      quantity: 1,
-    },
-    {
-      id: 'cart-init-2',
-      perfumeId: 'p-5',
-      name: 'Creed Absolute Aventus',
-      house: 'House of Creed',
-      format: '50ml Parfum',
-      price: 10.0,
-      quantity: 1,
-    },
-  ]);
+  // Shopping cart state (clean initial state, no dummy items)
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
+
+  // Persistent sidebar collapse state saved in localStorage
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('alura_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('alura_sidebar_collapsed', String(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  // Initial silent synchronization with live Supabase Database
+  useEffect(() => {
+    purgeMockData();
+    PerfumeRepository.fetchFromSupabase();
+    SalesRepository.fetchSalesFromSupabase();
+    SalesRepository.fetchClientsFromSupabase();
+    SalesRepository.fetchAbonosFromSupabase();
+    SupplierRepository.fetchInvoicesFromSupabase();
+    SupplierRepository.fetchPaymentsFromSupabase();
+    AuditRepository.fetchWeeklyRecordsFromSupabase();
+    AuditRepository.fetchDrawerFromSupabase();
+  }, []);
 
   const handleNavigate = (targetViewOrPath: string) => {
     const destination = routeMap[targetViewOrPath] || targetViewOrPath;
@@ -121,9 +145,23 @@ export default function App() {
     setCartItems((prev) => prev.filter((i) => i.id !== cartItemId));
   };
 
+  const handleUpdateQuantity = (cartItemId: string, delta: number) => {
+    setCartItems((prev) =>
+      prev
+        .map((item) => {
+          if (item.id === cartItemId) {
+            const nextQty = item.quantity + delta;
+            return nextQty > 0 ? { ...item, quantity: nextQty } : null;
+          }
+          return item;
+        })
+        .filter((item): item is CartItem => item !== null)
+    );
+  };
+
   const handleProceedCheckout = () => {
-    setIsCartOpen(false);
-    navigate('/admin/pos');
+    // Open cart drawer directly for seamless WhatsApp ordering without exposing internal POS
+    setIsCartOpen(true);
   };
 
   // Check if current route is part of storefront boutique or admin management dashboard
@@ -145,6 +183,15 @@ export default function App() {
             onNavigate={handleNavigate}
             cartCount={cartItems.reduce((acc, i) => acc + i.quantity, 0)}
             onOpenCart={() => setIsCartOpen(true)}
+          />
+
+          <CartDrawer
+            isOpen={isCartOpen}
+            onClose={() => setIsCartOpen(false)}
+            items={cartItems}
+            onRemoveItem={handleRemoveFromCart}
+            onUpdateQuantity={handleUpdateQuantity}
+            onNavigateToCatalog={() => navigate('/collection')}
           />
 
           <main className="w-full pt-32 bg-[#fbf9f5] flex-1">
@@ -207,17 +254,20 @@ export default function App() {
             onNavigate={handleNavigate}
             isOpenMobile={isMobileSidebarOpen}
             onCloseMobile={() => setIsMobileSidebarOpen(false)}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
           />
 
-          <div className="lg:pl-72 flex flex-col flex-1 min-h-screen w-full">
+          <div className={`${isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'} transition-all duration-300 ease-in-out flex flex-col flex-1 min-h-screen w-full`}>
             <TopHeader
               onNavigate={handleNavigate}
               onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
               searchQuery={globalSearch}
               onSearchChange={setGlobalSearch}
+              isSidebarCollapsed={isSidebarCollapsed}
             />
 
-            <main className="relative pt-24 w-full px-4 sm:px-6 md:px-8 pb-12 bg-[#fbf9f5] flex-1">
+            <main className="relative pt-20 sm:pt-24 w-full px-3.5 sm:px-6 md:px-8 pb-12 bg-[#fbf9f5] flex-1">
               <Routes>
                 <Route
                   path="/admin"

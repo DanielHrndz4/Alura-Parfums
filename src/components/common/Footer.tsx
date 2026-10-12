@@ -116,11 +116,8 @@ export const Footer: React.FC = () => {
             <a className="hover:text-[#775a00] transition-colors" href="#terms">
               Términos de Venta
             </a>
-            <a className="hover:text-[#775a00] transition-colors" href="#access">
-              Accesibilidad
-            </a>
-            <a className="hover:text-[#775a00] transition-colors" href="#legal">
-              Aviso Legal
+            <a className="hover:text-[#775a00] transition-colors" href="/admin/inventory" title="Acceso exclusivo administradores">
+              Portal Administrativo
             </a>
           </div>
         </div>
