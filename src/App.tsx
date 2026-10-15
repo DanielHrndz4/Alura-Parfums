@@ -23,6 +23,7 @@ import { SupplierInvoicesView } from './components/views/SupplierInvoicesView';
 import { AuditBalanceView } from './components/views/AuditBalanceView';
 import { PendingCreditView } from './components/views/PendingCreditView';
 import { InventoryManagementView } from './components/views/InventoryManagementView';
+import { SoldPerfumesStatsView } from './components/views/SoldPerfumesStatsView';
 
 const routeMap: Record<string, string> = {
   // Storefront main
@@ -40,6 +41,13 @@ const routeMap: Record<string, string> = {
   audit: '/admin/audit',
   admin: '/admin/audit',
   auditoria: '/admin/audit',
+
+  // Sold perfumes / Analytics
+  'sold-perfumes': '/admin/sold-perfumes',
+  sold_perfumes: '/admin/sold-perfumes',
+  analytics: '/admin/sold-perfumes',
+  estadisticas: '/admin/sold-perfumes',
+  stats: '/admin/sold-perfumes',
 
   // Inventory
   inventory: '/admin/inventory',
@@ -290,6 +298,22 @@ export default function App() {
                   element={<Navigate to="/admin/pos" replace />}
                 />
                 <Route
+                  path="/admin/sold-perfumes"
+                  element={<SoldPerfumesStatsView />}
+                />
+                <Route
+                  path="/admin/analytics"
+                  element={<Navigate to="/admin/sold-perfumes" replace />}
+                />
+                <Route
+                  path="/admin/estadisticas"
+                  element={<Navigate to="/admin/sold-perfumes" replace />}
+                />
+                <Route
+                  path="/admin/stats"
+                  element={<Navigate to="/admin/sold-perfumes" replace />}
+                />
+                <Route
                   path="/admin/credits"
                   element={<PendingCreditView />}
                 />
@@ -338,6 +362,18 @@ export default function App() {
                 <Route
                   path="/audit"
                   element={<Navigate to="/admin/audit" replace />}
+                />
+                <Route
+                  path="/sold-perfumes"
+                  element={<Navigate to="/admin/sold-perfumes" replace />}
+                />
+                <Route
+                  path="/analytics"
+                  element={<Navigate to="/admin/sold-perfumes" replace />}
+                />
+                <Route
+                  path="/estadisticas"
+                  element={<Navigate to="/admin/sold-perfumes" replace />}
                 />
 
                 {/* Catch-all fallback */}

@@ -155,19 +155,27 @@ export const AuditBalanceView: React.FC = () => {
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#E6DED1]/80 mb-6">
         <div>
           <div className="flex items-center gap-2 text-[#6E665F] font-label-sm uppercase tracking-widest text-xs font-bold">
-            <span>Control Financiero &amp; Operativo</span>
+            <span>Tesorería &amp; Control</span>
             <span className="text-[#c59b27]">•</span>
-            <span>Resumen Ejecutivo</span>
+            <span>Resumen Financiero</span>
           </div>
           <h1 className="font-headline-lg text-[#1A1817] tracking-tight font-serif text-2xl sm:text-3xl font-semibold mt-1">
-            Estadísticas &amp; Cuadre de Saldos
+            Cierre de Caja &amp; Finanzas
           </h1>
           <p className="font-body-md text-[#6E665F] text-xs sm:text-sm mt-1">
-            Visualización simple: dinero que debes tener en caja, productos disponibles, cuentas por cobrar y por pagar.
+            Control de tesorería: dinero en caja física, cuadres diarios, cuentas por cobrar y por pagar.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => navigate('/admin/sold-perfumes')}
+            className="w-full sm:w-auto justify-center px-4 py-2.5 rounded-none bg-white border border-[#E6DED1] hover:bg-[#F5F2EB] text-[#1A1817] font-bold text-xs transition-all shadow-xs flex items-center gap-2 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[18px] text-[#775a00]">analytics</span>
+            <span>Ver Estadísticas</span>
+          </button>
+
           <button
             onClick={() => {
               setInputContado(drawerSummary.expectedTotal.toFixed(2));

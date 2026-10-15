@@ -84,9 +84,9 @@ export class PosService {
     };
 
     const mainFragrance =
-      items.length > 1
-        ? items.map((i) => `${i.name}${i.quantity > 1 ? ` (x${i.quantity})` : ''}`).join(', ')
-        : items[0]?.name || 'Fragancia Haute Parfumerie';
+      items.length > 0
+        ? items.map((i) => `${i.name} (x${i.quantity || 1})`).join(', ')
+        : 'Fragancia Haute Parfumerie';
     const mainHouse = items.length > 0 ? items[0].house : 'Maison Alura';
 
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -119,12 +119,14 @@ export class PosService {
 
     SalesRepository.add(newSale);
 
-    // If sale involves credit, update/create client balance with Supabase persistence
-    if (paymentMethod === 'credit100') {
-      SalesRepository.recordCreditForSale(newSale, total);
-    } else if (paymentMethod === 'credit50') {
-      SalesRepository.recordCreditForSale(newSale, total / 2);
-    }
+    // Sincronizar automáticamente el frasco y formato adquirido en el perfil del cliente
+    const creditAmount =
+      paymentMethod === 'credit100'
+        ? total
+        : paymentMethod === 'credit50'
+        ? total / 2
+        : 0;
+    SalesRepository.recordSaleForClient(newSale, items, creditAmount);
 
     return newSale;
   }

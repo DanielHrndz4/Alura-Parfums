@@ -21,31 +21,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: '/admin/inventory',
       aliasKey: 'inventory',
-      label: 'Inventario & Catálogo',
+      label: 'Inventario',
       icon: 'inventory_2',
     },
     {
       id: '/admin/pos',
       aliasKey: 'pos',
-      label: 'Punto de Venta & Movimientos',
+      label: 'Punto de Venta',
       icon: 'point_of_sale',
+    },
+    {
+      id: '/admin/sold-perfumes',
+      aliasKey: 'sold-perfumes',
+      label: 'Estadísticas',
+      icon: 'analytics',
     },
     {
       id: '/admin/credits',
       aliasKey: 'credits',
-      label: 'Pendiente de Cobro & Créditos',
+      label: 'Créditos',
       icon: 'receipt_long',
     },
     {
       id: '/admin/suppliers',
       aliasKey: 'suppliers',
-      label: 'Pago a Proveedores & Lotes',
+      label: 'Proveedores',
       icon: 'local_shipping',
     },
     {
       id: '/admin/audit',
       aliasKey: 'audit',
-      label: 'Estadísticas & Cuadres de Saldo',
+      label: 'Cierre de Caja',
       icon: 'account_balance',
     },
   ];

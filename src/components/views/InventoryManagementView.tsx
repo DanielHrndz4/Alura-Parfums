@@ -24,6 +24,13 @@ export const InventoryManagementView: React.FC = () => {
   const [apiKeyInput, setApiKeyInput] = useState(() => GeminiService.getApiKey());
   const [notification, setNotification] = useState<string | null>(null);
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState<{
+    current: number;
+    total: number;
+    name: string;
+    percentage: number;
+  } | null>(null);
+  const enrichAbortControllerRef = useRef<AbortController | null>(null);
 
   // Quick Duplicate (Alternate size 50ml / 100ml) state
   const [duplicateTarget, setDuplicateTarget] = useState<Perfume | null>(null);
@@ -422,16 +429,39 @@ export const InventoryManagementView: React.FC = () => {
   };
 
   const handleEnrichAllPerfumes = async () => {
+    if (isEnrichingAll) return;
     setIsEnrichingAll(true);
-    showNotify('✨ Analizando y clasificando catálogo completo (Familia, Concentración y Acordes)...');
+    setEnrichProgress({ current: 0, total: perfumes.length, name: 'Iniciando...', percentage: 0 });
+    const controller = new AbortController();
+    enrichAbortControllerRef.current = controller;
+    showNotify('✨ Iniciando análisis acelerado del catálogo con Enciclopedia Fragrantica y Gemini...');
+
     try {
-      const enriched = await PerfumeRepository.enrichAllPerfumes();
+      const enriched = await PerfumeRepository.enrichAllPerfumes(
+        (info) => {
+          setEnrichProgress(info);
+        },
+        controller.signal
+      );
       setPerfumes(PerfumeRepository.getAll());
-      showNotify(`✓ Se analizaron y actualizaron exitosamente ${enriched.length} fragancias en el catálogo.`);
-    } catch {
-      showNotify('Error al analizar las fragancias del catálogo.');
+      if (controller.signal.aborted) {
+        showNotify(`⏸️ Análisis detenido. Se guardaron los cambios de las ${enriched.length} fragancias analizadas.`);
+      } else {
+        showNotify(`✓ Se analizaron y actualizaron exitosamente ${enriched.length} fragancias en el catálogo.`);
+      }
+    } catch (err: any) {
+      showNotify(`Error al analizar las fragancias: ${err?.message || 'Intente nuevamente'}`);
     } finally {
       setIsEnrichingAll(false);
+      setEnrichProgress(null);
+      enrichAbortControllerRef.current = null;
+    }
+  };
+
+  const handleStopEnrichment = () => {
+    if (enrichAbortControllerRef.current) {
+      enrichAbortControllerRef.current.abort();
+      showNotify('Deteniendo análisis del catálogo...');
     }
   };
 
@@ -681,15 +711,33 @@ export const InventoryManagementView: React.FC = () => {
             onClick={handleEnrichAllPerfumes}
             disabled={isEnrichingAll}
             className={`px-3.5 py-2.5 sm:py-2 rounded-none bg-[#FAF8F5] hover:bg-[#F5F2EB] text-[#775a00] hover:text-[#1A1817] text-xs font-semibold border border-[#c59b27]/60 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs ${
-              isEnrichingAll ? 'opacity-70 cursor-wait' : ''
+              isEnrichingAll ? 'opacity-85 cursor-wait' : ''
             }`}
             title="Analizar de una vez la familia, concentración (EDP, EDT, etc.), acordes y notas de todas las fragancias creadas"
           >
             <span className={`material-symbols-outlined text-[16px] text-[#c59b27] ${isEnrichingAll ? 'animate-spin' : ''}`}>
               {isEnrichingAll ? 'refresh' : 'auto_fix_high'}
             </span>
-            <span>{isEnrichingAll ? 'Analizando Todo...' : '✨ Analizar Catálogo con IA'}</span>
+            <span>
+              {isEnrichingAll && enrichProgress
+                ? `Analizando (${enrichProgress.current}/${enrichProgress.total}) ${enrichProgress.percentage}%...`
+                : isEnrichingAll
+                ? 'Analizando Catálogo...'
+                : '✨ Analizar Catálogo con IA'}
+            </span>
           </button>
+
+          {isEnrichingAll && (
+            <button
+              type="button"
+              onClick={handleStopEnrichment}
+              className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200 transition-all flex items-center justify-center gap-1 cursor-pointer"
+              title="Detener el análisis y guardar los perfumes procesados"
+            >
+              <span className="material-symbols-outlined text-[16px]">stop_circle</span>
+              <span>Detener</span>
+            </button>
+          )}
 
           <button
             onClick={() => setIsApiKeyModalOpen(true)}
@@ -709,6 +757,44 @@ export const InventoryManagementView: React.FC = () => {
           </button>
         </div>
       </header>
+
+      {/* Live Enrichment Progress Banner */}
+      {isEnrichingAll && enrichProgress && (
+        <div className="mb-6 p-4 bg-[#FAF8F5] border border-[#c59b27]/50 shadow-xs flex flex-col gap-2.5 transition-all">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px] text-[#c59b27] animate-spin">refresh</span>
+              <span className="font-semibold text-[#1A1817]">
+                Analizando con IA y Enciclopedia:{' '}
+                <span className="text-[#775a00] font-serif font-bold">"{enrichProgress.name}"</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[#6E665F] font-semibold">
+                {enrichProgress.current} de {enrichProgress.total} ({enrichProgress.percentage}%)
+              </span>
+              <button
+                type="button"
+                onClick={handleStopEnrichment}
+                className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 font-semibold text-xs border border-red-200 transition-all cursor-pointer flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[14px]">cancel</span>
+                <span>Detener y Guardar</span>
+              </button>
+            </div>
+          </div>
+          <div className="w-full bg-[#E6DED1] h-2.5 rounded-full overflow-hidden">
+            <div
+              className="bg-[#c59b27] h-full transition-all duration-300 ease-out"
+              style={{ width: `${Math.max(4, enrichProgress.percentage)}%` }}
+            />
+          </div>
+          <div className="text-[11px] text-[#6E665F] flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <span>⚡ Modo ultrarrápido: Enciclopedia local Fragrantica (0ms) + Gemini 1.5 Flash</span>
+            <span className="text-[#775a00] font-medium">✓ Los avances se guardan progresivamente</span>
+          </div>
+        </div>
+      )}
 
       {/* 1. KPI Cards de Auditoría y Verificación de Inventario */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">

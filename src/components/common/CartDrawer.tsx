@@ -83,7 +83,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       message += `*Total:* $${subtotal.toFixed(2)} USD\n\n`;
     }
 
-    message += `*Formato:* Réplicas de Alta Calidad 1:1 (+8-12h fijación)\n¿Me indican los métodos de pago y tiempo de entrega?`;
+    message += `*Formato:* Contratipos de Alta Calidad (+8-12h fijación)\n¿Me indican los métodos de pago y tiempo de entrega en San Salvador?`;
 
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encoded}`, '_blank');
@@ -126,7 +126,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </span>
               <p className="font-serif font-medium text-base text-[#1A1817]">Tu bolsa está vacía</p>
               <p className="text-xs text-[#6E665F] mt-1 max-w-xs mx-auto">
-                Explora nuestras réplicas de ultra-lujo 1:1 en frascos de 50ml ($10) y 100ml ($15 USD).
+                Explora nuestros contratipos de ultra-lujo en frascos de 50ml ($10) y 100ml ($15 USD).
               </p>
               <button
                 onClick={() => {
@@ -195,7 +195,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           <div className="p-5 border-t border-[#E6DED1] bg-white space-y-4">
             <div className="flex items-center justify-between text-xs text-[#6E665F]">
               <span>Garantía de Fidelidad:</span>
-              <span className="font-semibold text-[#775a00]">1:1 Mismo Aroma (+12h)</span>
+              <span className="font-semibold text-[#775a00]">Mismo Aroma Fiel (+12h)</span>
             </div>
 
             {/* Cupón de Descuento */}

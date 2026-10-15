@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { SalesRepository } from '../../repositories/salesRepository';
 import { ClientProfile, AbonoTransaction } from '../../types/sale';
 import { RegisterClientModal } from '../common/RegisterClientModal';
@@ -35,6 +35,15 @@ export const PendingCreditView: React.FC = () => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3500);
   };
+
+  useEffect(() => {
+    // 1. Cargar clientes y abonos de Supabase
+    SalesRepository.fetchClientsFromSupabase().then((loaded) => {
+      setClients(loaded);
+    });
+    SalesRepository.fetchAbonosFromSupabase().then((a) => setAbonosHistory(a));
+    SalesRepository.fetchSalesFromSupabase();
+  }, []);
 
   const confirmDeleteClient = () => {
     if (!clientToDelete) return;
@@ -136,43 +145,10 @@ export const PendingCreditView: React.FC = () => {
     });
   }, [clients, clientScopeFilter, clientSearchQuery]);
 
-  // Historial de ventas para correlacionar perfumes adquiridos
-  const salesHistory = useMemo(() => SalesRepository.getAll(), [clients, abonosHistory]);
-
   const getClientPerfumeInfo = (client: ClientProfile) => {
-    // 1. Directamente guardado en el perfil del cliente
-    if (client.lastFragrance) {
-      return {
-        fragrance: client.lastFragrance,
-        format: client.lastFormat || '100ml',
-        house: client.favoriteHouse,
-      };
-    }
-
-    // 2. Buscar en el historial de ventas por nombre de cliente
-    const cleanClientName = (client.name || '').toLowerCase().replace(/[\(\)-]/g, ' ').replace(/\s+/g, ' ').trim();
-    const matchingSale = salesHistory.find((s) => {
-      const saleClient = (s.clientName || '').toLowerCase().replace(/[\(\)-]/g, ' ').replace(/\s+/g, ' ').trim();
-      if (!saleClient) return false;
-      if (saleClient === cleanClientName) return true;
-      if (cleanClientName && (saleClient.includes(cleanClientName) || cleanClientName.includes(saleClient))) return true;
-
-      const words = cleanClientName.split(' ');
-      if (words.length >= 2 && saleClient.includes(words[0]) && saleClient.includes(words[1])) return true;
-      return false;
-    });
-
-    if (matchingSale && matchingSale.fragranceName) {
-      return {
-        fragrance: matchingSale.fragranceName,
-        format: matchingSale.format || '100ml',
-        house: matchingSale.house || client.favoriteHouse,
-      };
-    }
-
     return {
-      fragrance: undefined,
-      format: undefined,
+      fragrance: client.lastFragrance,
+      format: client.lastFormat || (client.lastFragrance ? '100ml' : undefined),
       house: client.favoriteHouse,
     };
   };

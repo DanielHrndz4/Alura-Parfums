@@ -786,27 +786,6 @@ const ENCYCLOPEDIA_KNOWLEDGE: Record<string, Partial<GeminiFragranceResult>> = {
       { id: 'noche', name: 'Noche', percentage: 75, votes: '1.5k', color: '#85B6D4' },
     ],
   },
-  yara: {
-    name: 'Yara',
-    house: 'Lattafa',
-    family: 'Gourmand',
-    concentration: 'Eau de Parfum',
-    format: '100ml • Eau de Parfum',
-    gender: 'fem',
-    description:
-      'Sensación golosa y envolvente de malvavisco, frutas tropicales, orquídea y vainilla.',
-    notes: {
-      top: ['Heliotropo', 'Orquídea', 'Mandarina'],
-      heart: ['Acorde goloso', 'Frutas tropicales'],
-      base: ['Vainilla', 'Almizcle', 'Sándalo'],
-    },
-    accords: [
-      { name: 'dulce', percentage: 100, color: '#D81B60' },
-      { name: 'avainillado', percentage: 90, color: '#C7A75C' },
-      { name: 'tropical', percentage: 80, color: '#E67E22' },
-      { name: 'atalcado', percentage: 70, color: '#CE93D8' },
-    ],
-  },
   'hawas for him': {
     name: 'Hawas for Him',
     house: 'Rasasi',
@@ -1430,8 +1409,13 @@ export class GeminiService {
   static async findFragranceImage(
     name: string,
     house: string = '',
-    family: OlfactoryFamily = 'Amaderado'
+    family: OlfactoryFamily = 'Amaderado',
+    preferredImageUrl?: string
   ): Promise<string> {
+    if (preferredImageUrl && (preferredImageUrl.startsWith('http') || preferredImageUrl.startsWith('/'))) {
+      return preferredImageUrl;
+    }
+
     // 0. Direct Fragrantica URL or ID detection
     const fragrantica = this.parseFragranticaUrl(name) || this.parseFragranticaUrl(house);
     if (fragrantica) {
@@ -1453,14 +1437,14 @@ export class GeminiService {
       }
     }
 
-    // 2. Open Wikimedia Commons Live Search
+    // 2. Open Wikimedia Commons Live Search with 2s timeout
     try {
       const cleanSearch = name.replace(/[^\w\s]/gi, '').trim();
       const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(
         cleanSearch + ' perfume'
       )}&gsrlimit=1&prop=imageinfo&iiprop=url&format=json&origin=*`;
 
-      const response = await fetch(wikiUrl);
+      const response = await fetch(wikiUrl, { signal: AbortSignal.timeout(2000) });
       if (response.ok) {
         const json = await response.json();
         const pages = json?.query?.pages;
@@ -1491,7 +1475,7 @@ export class GeminiService {
    * Returns complete olfactory pyramid, accords, description AND authentic bottle image.
    * Directly supports Fragrantica URLs (e.g. https://www.fragrantica.es/perfume/Valentino/Valentino-Uomo-Born-in-Roma-55963.html).
    */
-  static async searchFragrance(query: string): Promise<GeminiFragranceResult> {
+  static async searchFragrance(query: string, preferredImageUrl?: string): Promise<GeminiFragranceResult> {
     const cleanQuery = query.trim();
     if (!cleanQuery) {
       throw new Error('Por favor ingresa el nombre de la fragancia a investigar o pega el código HTML de Fragrantica.');
@@ -1535,6 +1519,7 @@ export class GeminiService {
             htmlWhenToWear.length > 0
               ? htmlWhenToWear
               : getDefaultWhenToWear('Amaderado'),
+          suggestedImageUrl: preferredImageUrl,
           source: 'gemini-api',
         };
       }
@@ -1567,12 +1552,14 @@ export class GeminiService {
         const result = await this.callGeminiApi(
           searchTarget,
           apiKey,
-          fragrantica?.imageUrl,
+          fragrantica?.imageUrl || preferredImageUrl,
           liveScraped?.rawContent
         );
         if (result) {
           if (fragrantica) {
             result.suggestedImageUrl = fragrantica.imageUrl;
+          } else if (preferredImageUrl) {
+            result.suggestedImageUrl = preferredImageUrl;
           }
           // Si obtuvimos acordes en tiempo real directamente de la web, úsalos garantizando exactitud
           if (liveScraped?.accords && liveScraped.accords.length > 0) {
@@ -1591,10 +1578,11 @@ export class GeminiService {
     // Si tenemos acordes o datos raspados en vivo pero no hay API key o falló Gemini, usarlos directamente:
     if (liveScraped?.accords && liveScraped.accords.length > 0) {
       const fam: OlfactoryFamily = 'Amaderado';
-      const img = await this.findFragranceImage(
+      const img = preferredImageUrl || await this.findFragranceImage(
         liveScraped.name || fragrantica?.name || cleanQuery,
         liveScraped.house || fragrantica?.house || '',
-        fam
+        fam,
+        preferredImageUrl
       );
       return {
         name: liveScraped.name || fragrantica?.name || cleanQuery,
@@ -1622,7 +1610,7 @@ export class GeminiService {
     }
 
     // Fallback: Consulta la enciclopedia local enriquecida
-    const localRes = await this.searchEncyclopediaOrGenerate(cleanQuery);
+    const localRes = await this.searchEncyclopediaOrGenerate(cleanQuery, preferredImageUrl);
     if (fragrantica) {
       localRes.suggestedImageUrl = fragrantica.imageUrl;
       if (fragrantica.house) localRes.house = fragrantica.house;
@@ -1706,7 +1694,8 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin markdown adicional, sin comilla
   ]
 }`;
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    // Use gemini-1.5-flash for maximum stability, ultra-fast response times and standard v1beta support
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -1718,6 +1707,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin markdown adicional, sin comilla
           responseMimeType: 'application/json',
         },
       }),
+      signal: AbortSignal.timeout(7000),
     });
 
     if (!response.ok) {
@@ -1877,16 +1867,92 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin markdown adicional, sin comilla
   /**
    * Re-analyzes an existing perfume completely: family, concentration, format, accords, notes, and seasonality.
    */
-  static async enrichPerfume(perfume: Perfume): Promise<Perfume> {
+  static findEncyclopediaMatch(query: string): any | null {
+    const lower = query.toLowerCase();
+    const sortedEntries = Object.entries(ENCYCLOPEDIA_KNOWLEDGE).sort(
+      ([a], [b]) => b.length - a.length
+    );
+    for (const [key, data] of sortedEntries) {
+      if (lower.includes(key)) {
+        return data;
+      }
+    }
+    return null;
+  }
+
+  static async buildFromEncyclopedia(
+    data: any,
+    query: string,
+    preferredImageUrl?: string
+  ): Promise<GeminiFragranceResult> {
+    const family = (data.family as OlfactoryFamily) || 'Amaderado';
+    const is50ml = (data.format || '').includes('50ml') || query.toLowerCase().includes('50ml');
+    const img = preferredImageUrl || (await this.findFragranceImage(data.name || query, data.house || '', family, preferredImageUrl));
+
+    const preparedAccords = (data.accords || [
+      { name: family.toLowerCase(), percentage: 100, color: getFragranticaAccordColor(family) },
+      { name: 'ámbar cálido', percentage: 80, color: getFragranticaAccordColor('ámbar') },
+    ]).map((a: any) => ({
+      ...a,
+      color: a.color || getFragranticaAccordColor(a.name),
+    }));
+
+    const preparedWhenToWear = (data.whenToWear || getDefaultWhenToWear(family, data.name || query)).map((w: any) => ({
+      ...w,
+      color: w.color || getFragranticaSeasonColor(w.id),
+    }));
+
+    const concentration = data.concentration || this.detectConcentration(data.format || query);
+    const format = `${is50ml ? '50ml' : '100ml'} • ${concentration}`;
+
+    return {
+      name: data.name || query,
+      house: data.house || 'Maison Niche',
+      family: family,
+      concentration: concentration,
+      format: format,
+      gender: (data.gender as GenderStyle) || 'unisex',
+      price: is50ml ? 10.0 : 15.0,
+      description: data.description || 'Creación olfativa exclusiva catalogada en el atelier.',
+      notes: data.notes || {
+        top: ['Bergamota', 'Azafrán'],
+        heart: ['Rosa de Damasco', 'Cedro'],
+        base: ['Ámbar gris', 'Vainilla'],
+      },
+      accords: preparedAccords,
+      whenToWear: preparedWhenToWear,
+      suggestedImageUrl: img,
+      source: 'encyclopedia',
+    };
+  }
+
+  /**
+   * Re-analyzes an existing perfume completely: family, concentration, format, accords, notes, and seasonality.
+   * Priority: Instant local encyclopedia (0ms) -> Gemini AI (fast 7s timeout) -> Heuristic synthesis.
+   */
+  static async enrichPerfume(perfume: Perfume, preferredImageUrl?: string): Promise<Perfume> {
     const query = `${perfume.name} ${perfume.house}`.trim();
     const is50ml = (perfume.format || '').toLowerCase().includes('50ml');
     const capacity = is50ml ? '50ml' : '100ml';
+    const effectiveImg = preferredImageUrl || perfume.imageUrl;
 
     let analysis: GeminiFragranceResult;
     try {
-      analysis = await this.searchFragrance(query);
+      // 1. Instant check in verified Encyclopedia Knowledge (0ms, 100% accurate!)
+      const match = this.findEncyclopediaMatch(query);
+      if (match) {
+        analysis = await this.buildFromEncyclopedia(match, query, effectiveImg);
+      } else if (this.getApiKey()) {
+        try {
+          analysis = await this.searchFragrance(query, effectiveImg);
+        } catch {
+          analysis = await this.searchEncyclopediaOrGenerate(query, effectiveImg);
+        }
+      } else {
+        analysis = await this.searchEncyclopediaOrGenerate(query, effectiveImg);
+      }
     } catch {
-      analysis = await this.searchEncyclopediaOrGenerate(query);
+      analysis = await this.searchEncyclopediaOrGenerate(query, effectiveImg);
     }
 
     const family = analysis.family || this.detectOlfactoryFamily(perfume.name, perfume.house, perfume.description);
@@ -1913,61 +1979,19 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin markdown adicional, sin comilla
     };
   }
 
-  private static async searchEncyclopediaOrGenerate(query: string): Promise<GeminiFragranceResult> {
-    const lower = query.toLowerCase();
-
-    // Check encyclopedia keys ordered by key length descending (most specific first)
-    const sortedEntries = Object.entries(ENCYCLOPEDIA_KNOWLEDGE).sort(
-      ([a], [b]) => b.length - a.length
-    );
-
-    for (const [key, data] of sortedEntries) {
-      if (lower.includes(key)) {
-        const family = (data.family as OlfactoryFamily) || 'Amaderado';
-        const is50ml = (data.format || '').includes('50ml') || lower.includes('50ml');
-        const img = await this.findFragranceImage(data.name || query, data.house || '', family);
-
-        const preparedAccords = (data.accords || [
-          { name: family.toLowerCase(), percentage: 100, color: getFragranticaAccordColor(family) },
-          { name: 'ámbar cálido', percentage: 80, color: getFragranticaAccordColor('ámbar') },
-        ]).map((a) => ({
-          ...a,
-          color: a.color || getFragranticaAccordColor(a.name),
-        }));
-
-        const preparedWhenToWear = (data.whenToWear || getDefaultWhenToWear(family, data.name || query)).map((w) => ({
-          ...w,
-          color: w.color || getFragranticaSeasonColor(w.id),
-        }));
-
-        const concentration = data.concentration || this.detectConcentration(data.format || query);
-        const format = `${is50ml ? '50ml' : '100ml'} • ${concentration}`;
-
-        return {
-          name: data.name || query,
-          house: data.house || 'Maison Niche',
-          family: family,
-          concentration: concentration,
-          format: format,
-          gender: (data.gender as GenderStyle) || 'unisex',
-          price: is50ml ? 10.0 : 15.0,
-          description: data.description || 'Creación olfativa exclusiva catalogada en el atelier.',
-          notes: data.notes || {
-            top: ['Bergamota', 'Azafrán'],
-            heart: ['Rosa de Damasco', 'Cedro'],
-            base: ['Ámbar gris', 'Vainilla'],
-          },
-          accords: preparedAccords,
-          whenToWear: preparedWhenToWear,
-          suggestedImageUrl: img,
-          source: 'encyclopedia',
-        };
-      }
+  private static async searchEncyclopediaOrGenerate(
+    query: string,
+    preferredImageUrl?: string
+  ): Promise<GeminiFragranceResult> {
+    const match = this.findEncyclopediaMatch(query);
+    if (match) {
+      return this.buildFromEncyclopedia(match, query, preferredImageUrl);
     }
 
     // Heuristic generator for any other fragrance name
     const detectedFamily = this.detectOlfactoryFamily(query);
     const detectedConcentration = this.detectConcentration(query);
+    const lower = query.toLowerCase();
     const is50ml = lower.includes('50ml');
     let detectedGender: GenderStyle = 'unisex';
 
@@ -1982,7 +2006,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin markdown adicional, sin comilla
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(' ');
 
-    const img = await this.findFragranceImage(capitalizedName, '', detectedFamily);
+    const img = preferredImageUrl || (await this.findFragranceImage(capitalizedName, '', detectedFamily, preferredImageUrl));
 
     return {
       name: capitalizedName,

@@ -25,7 +25,38 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
 }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const allPerfumes = PerfumeRepository.getAll();
+  const [allPerfumes, setAllPerfumes] = useState<Perfume[]>(() => PerfumeRepository.getAll());
+
+  useEffect(() => {
+    PerfumeRepository.fetchFromSupabase().then((data) => {
+      if (data && data.length > 0) {
+        setAllPerfumes(data);
+      }
+    });
+  }, []);
+
+  // Dynamically compute real available houses and olfactory families directly from actual catalog items
+  const availableHouses = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allPerfumes.forEach((p) => {
+      const h = p.house?.trim();
+      if (h) counts[h] = (counts[h] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([house, count]) => ({ house, count }));
+  }, [allPerfumes]);
+
+  const availableFamilies = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allPerfumes.forEach((p) => {
+      const f = p.family?.trim();
+      if (f) counts[f] = (counts[f] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([family, count]) => ({ family, count }));
+  }, [allPerfumes]);
 
   // Read URL query parameters
   const genderParam = searchParams.get('gender');
@@ -36,13 +67,12 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
   const sortParam = searchParams.get('sort');
 
   // Filters State
-  const [selectedGender, setSelectedGender] = useState<'all' | 'fem' | 'masc'>('all');
+  const [selectedGender, setSelectedGender] = useState<'all' | 'fem' | 'masc' | 'unisex'>('all');
   const [selectedFormat, setSelectedFormat] = useState<'all' | '50ml' | '100ml'>('all');
   const [inStockOnly, setInStockOnly] = useState(false);
   const [bestsellerOnly, setBestsellerOnly] = useState(false);
   const [soldoutOnly, setSoldoutOnly] = useState(false);
   const [samplesOnly, setSamplesOnly] = useState(false);
-  const [maxPrice, setMaxPrice] = useState(60);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedFamilies, setSelectedFamilies] = useState<OlfactoryFamily[]>([]);
   const [sortBy, setSortBy] = useState('popular');
@@ -50,7 +80,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
 
   // Sync state whenever URL query parameters change (e.g. from NavigationBar)
   useEffect(() => {
-    if (genderParam === 'fem' || genderParam === 'masc') {
+    if (genderParam === 'fem' || genderParam === 'masc' || genderParam === 'unisex') {
       setSelectedGender(genderParam);
     } else {
       setSelectedGender('all');
@@ -83,7 +113,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
 
   // Pagination & Detail Modal State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 12;
   const [detailPerfume, setDetailPerfume] = useState<Perfume | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -93,14 +123,13 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
     (selectedFormat !== 'all' ? 1 : 0) +
     selectedBrands.length +
     selectedFamilies.length +
-    (maxPrice < 60 ? 1 : 0) +
     (inStockOnly ? 1 : 0) +
     (bestsellerOnly ? 1 : 0) +
     (soldoutOnly ? 1 : 0) +
     (queryParam ? 1 : 0);
 
   // Reset pagination on filter changes & sync with URL
-  const handleGenderChange = (gender: 'all' | 'fem' | 'masc') => {
+  const handleGenderChange = (gender: 'all' | 'fem' | 'masc' | 'unisex') => {
     setSelectedGender(gender);
     const newParams = new URLSearchParams(searchParams);
     if (gender === 'all') {
@@ -134,11 +163,6 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
     setCurrentPage(1);
   };
 
-  const handlePriceChange = (val: number) => {
-    setMaxPrice(val);
-    setCurrentPage(1);
-  };
-
   const handleBrandToggle = (brand: string) => {
     setSelectedBrands((prev) =>
       prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand]
@@ -159,7 +183,6 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
     setInStockOnly(false);
     setBestsellerOnly(false);
     setSoldoutOnly(false);
-    setMaxPrice(60);
     setSelectedBrands([]);
     setSelectedFamilies([]);
     setSortBy('popular');
@@ -187,9 +210,6 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
         }
       }
 
-      // Price
-      if (item.price > maxPrice) return false;
-
       // Gender
       if (selectedGender !== 'all' && item.gender !== selectedGender) return false;
 
@@ -197,10 +217,10 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
       if (selectedFormat === '50ml' && !item.format.toLowerCase().includes('50ml')) return false;
       if (selectedFormat === '100ml' && !item.format.toLowerCase().includes('100ml')) return false;
 
-      // Brand
+      // Brand (Real houses)
       if (selectedBrands.length > 0 && !selectedBrands.includes(item.house)) return false;
 
-      // Olfactory Family
+      // Olfactory Family (Real families)
       if (selectedFamilies.length > 0 && !selectedFamilies.includes(item.family)) return false;
 
       // Delivery Status
@@ -226,7 +246,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
     }
 
     return result;
-  }, [allPerfumes, maxPrice, selectedGender, selectedFormat, selectedBrands, selectedFamilies, inStockOnly, bestsellerOnly, soldoutOnly, sortBy, queryParam]);
+  }, [allPerfumes, selectedGender, selectedFormat, selectedBrands, selectedFamilies, inStockOnly, bestsellerOnly, soldoutOnly, sortBy, queryParam]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredPerfumes.length / itemsPerPage) || 1;
@@ -239,11 +259,11 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
   return (
     <div className="flex flex-col w-full relative">
       {/* Main Storefront Section */}
-      <section className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-10 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-          {/* Filter Sidebar (Col 1-4 on LG, 1-3 on XL) */}
-          <aside className={`lg:col-span-4 xl:col-span-3 space-y-6 ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white p-5 sm:p-6 rounded-xl shadow-sm space-y-6 sticky top-24 border border-[#E6DED1]">
+      <section className="max-w-[1760px] mx-auto px-3 sm:px-5 md:px-6 lg:px-8 py-5 sm:py-7 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
+          {/* Filter Sidebar */}
+          <aside className={`lg:col-span-3 xl:col-span-2.5 2xl:col-span-2 space-y-5 ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
+            <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm space-y-5 sticky top-24 border border-[#E6DED1]">
               <div className="flex items-center justify-between pb-2 bg-[#F5F2EB]/50 p-2 rounded-lg border border-[#E6DED1]/50">
                 <span className="font-title-md text-[#1A1817] flex items-center gap-1 text-xs font-semibold">
                   <span className="material-symbols-outlined text-[18px] text-[#B8860B]">tune</span>
@@ -266,7 +286,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                 </div>
               </div>
 
-              {/* Género */}
+              {/* Género & Estilo (Reales: Femenino, Masculino, Unisex) */}
               <div>
                 <h2 className="font-label-md uppercase tracking-wider text-[#2C2826] mb-2 text-xs font-semibold">
                   Género &amp; Estilo
@@ -284,7 +304,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                       />
                       Todos
                     </span>
-                    <span className="font-mono text-[#6E665F]">15</span>
+                    <span className="font-mono text-[#6E665F] text-[11px]">{allPerfumes.length}</span>
                   </label>
                   <label className="flex items-center justify-between p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer transition-colors text-xs">
                     <span className="flex items-center gap-2 text-[#1A1817]">
@@ -296,9 +316,11 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                         type="radio"
                         value="fem"
                       />
-                      Femenino
+                      Femenino / Damas
                     </span>
-                    <span className="font-mono text-[#6E665F]">9</span>
+                    <span className="font-mono text-[#775a00] font-semibold text-[11px]">
+                      {allPerfumes.filter((p) => p.gender === 'fem').length}
+                    </span>
                   </label>
                   <label className="flex items-center justify-between p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer transition-colors text-xs">
                     <span className="flex items-center gap-2 text-[#1A1817]">
@@ -310,14 +332,32 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                         type="radio"
                         value="masc"
                       />
-                      Masculino
+                      Masculino / Caballeros
                     </span>
-                    <span className="font-mono text-[#6E665F]">6</span>
+                    <span className="font-mono text-[#775a00] font-semibold text-[11px]">
+                      {allPerfumes.filter((p) => p.gender === 'masc').length}
+                    </span>
+                  </label>
+                  <label className="flex items-center justify-between p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer transition-colors text-xs">
+                    <span className="flex items-center gap-2 text-[#1A1817]">
+                      <input
+                        checked={selectedGender === 'unisex'}
+                        onChange={() => handleGenderChange('unisex')}
+                        className="accent-[#775a00]"
+                        name="gender"
+                        type="radio"
+                        value="unisex"
+                      />
+                      Unisex
+                    </span>
+                    <span className="font-mono text-[#775a00] font-semibold text-[11px]">
+                      {allPerfumes.filter((p) => p.gender === 'unisex').length}
+                    </span>
                   </label>
                 </div>
               </div>
 
-              {/* Presentación & Precio */}
+              {/* Presentación & Precio Real ($10 / $15) */}
               <div>
                 <h2 className="font-label-md uppercase tracking-wider text-[#2C2826] mb-2 text-xs font-semibold">
                   Presentación &amp; Precio
@@ -347,7 +387,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                         type="radio"
                         value="50ml"
                       />
-                      50ml ($10 USD)
+                      50ml • $10.00 USD
                     </span>
                     <span className="font-mono text-[#775a00] font-semibold text-[11px]">
                       {allPerfumes.filter((p) => p.format.toLowerCase().includes('50ml')).length}
@@ -363,7 +403,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                         type="radio"
                         value="100ml"
                       />
-                      100ml ($15 USD)
+                      100ml • $15.00 USD
                     </span>
                     <span className="font-mono text-[#775a00] font-semibold text-[11px]">
                       {allPerfumes.filter((p) => p.format.toLowerCase().includes('100ml')).length}
@@ -372,10 +412,10 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                 </div>
               </div>
 
-              {/* Estado de Entrega & Colección */}
+              {/* Disponibilidad Real */}
               <div>
                 <h2 className="font-label-md uppercase tracking-wider text-[#2C2826] mb-2 text-xs font-semibold">
-                  Disponibilidad &amp; Vitrina
+                  Disponibilidad
                 </h2>
                 <div className="space-y-1">
                   <label className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#F5F2EB] cursor-pointer text-xs">
@@ -386,7 +426,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                       type="checkbox"
                     />
                     <span className="text-[#1A1817] flex-1 font-medium">Disponibles (Inmediato)</span>
-                    <span className="font-label-sm text-[10px] px-1.5 py-0.5 rounded bg-[#F0F5EE] text-[#2D5A27]">
+                    <span className="font-label-sm text-[10px] px-1.5 py-0.5 rounded bg-[#F0F5EE] text-[#2D5A27] font-semibold">
                       {allPerfumes.filter((p) => p.stock > 0).length}
                     </span>
                   </label>
@@ -422,94 +462,81 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                 </div>
               </div>
 
-              {/* Rango de Inversión */}
+              {/* Casas Perfumistas (Reales según los 23 perfumes en existencia) */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="font-label-md uppercase tracking-wider text-[#2C2826] text-xs font-semibold">
-                    Rango de Inversión
+                    Casas Perfumistas
                   </h2>
-                  <span className="font-mono text-xs font-bold text-[#775a00]">
-                    ${maxPrice} USD máx
-                  </span>
-                </div>
-                <input
-                  max="60"
-                  min="10"
-                  onChange={(e) => handlePriceChange(Number(e.target.value))}
-                  step="5"
-                  className="w-full accent-[#775a00] cursor-pointer"
-                  type="range"
-                  value={maxPrice}
-                />
-                <div className="flex justify-between text-[10px] text-[#6E665F] font-mono mt-1">
-                  <span>$10 USD</span>
-                  <span>$35 USD</span>
-                  <span>$60 USD</span>
-                </div>
-              </div>
-
-              {/* Casas Perfumistas */}
-              <div>
-                <h2 className="font-label-md uppercase tracking-wider text-[#2C2826] mb-2 text-xs font-semibold">
-                  Casas Perfumistas (Maisons)
-                </h2>
-                <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
-                  {[
-                    'Valentino',
-                    'Lattafa Perfumes',
-                    'Armaf',
-                    'House of Creed',
-                    'Nishane',
-                    'Xerjoff',
-                    'Maison Francis Kurkdjian',
-                    'Parfums de Marly',
-                    'Le Labo',
-                    'Byredo',
-                  ].map((brand) => (
-                    <label
-                      key={brand}
-                      className="flex items-center gap-2 p-1.5 rounded hover:bg-[#F5F2EB] cursor-pointer text-xs"
+                  {selectedBrands.length > 0 && (
+                    <button
+                      onClick={() => setSelectedBrands([])}
+                      className="text-[10px] text-[#B8860B] hover:underline cursor-pointer font-medium"
                     >
-                      <input
-                        checked={selectedBrands.includes(brand)}
-                        onChange={() => handleBrandToggle(brand)}
-                        className="accent-[#775a00] rounded"
-                        type="checkbox"
-                      />
-                      <span className="text-[#1A1817] flex-1 truncate">{brand}</span>
+                      Limpiar ({selectedBrands.length})
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+                  {availableHouses.map(({ house, count }) => (
+                    <label
+                      key={house}
+                      className="flex items-center justify-between p-1.5 rounded-lg hover:bg-[#F5F2EB] cursor-pointer text-xs transition-colors"
+                    >
+                      <span className="flex items-center gap-2 text-[#1A1817] truncate">
+                        <input
+                          checked={selectedBrands.includes(house)}
+                          onChange={() => handleBrandToggle(house)}
+                          className="accent-[#775a00] rounded"
+                          type="checkbox"
+                        />
+                        <span className="truncate">{house}</span>
+                      </span>
+                      <span className="font-mono text-[#6E665F] text-[11px] ml-1 shrink-0 font-medium">
+                        {count}
+                      </span>
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* Familias Olfativas */}
+              {/* Familias Olfativas (Reales según los 23 perfumes en existencia) */}
               <div>
-                <h2 className="font-label-md uppercase tracking-wider text-[#2C2826] mb-2 text-xs font-semibold">
-                  Familia Olfativa
-                </h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="font-label-md uppercase tracking-wider text-[#2C2826] text-xs font-semibold">
+                    Familia Olfativa
+                  </h2>
+                  {selectedFamilies.length > 0 && (
+                    <button
+                      onClick={() => setSelectedFamilies([])}
+                      className="text-[10px] text-[#B8860B] hover:underline cursor-pointer font-medium"
+                    >
+                      Limpiar ({selectedFamilies.length})
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {(
-                    [
-                      'Floral',
-                      'Amaderado',
-                      'Gourmand',
-                      'Cuero',
-                      'Cítrico',
-                      'Especiado',
-                    ] as OlfactoryFamily[]
-                  ).map((fam) => {
-                    const isSelected = selectedFamilies.includes(fam);
+                  {availableFamilies.map(({ family, count }) => {
+                    const isSelected = selectedFamilies.includes(family as OlfactoryFamily);
                     return (
                       <button
-                        key={fam}
-                        onClick={() => handleFamilyToggle(fam)}
-                        className={`text-[10px] px-2.5 py-1 rounded-full border transition-all cursor-pointer ${
+                        key={family}
+                        type="button"
+                        onClick={() => handleFamilyToggle(family as OlfactoryFamily)}
+                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
                           isSelected
-                            ? 'bg-[#775a00] text-white border-[#775a00] font-semibold'
+                            ? 'bg-[#775a00] text-white border-[#775a00] font-semibold shadow-xs'
                             : 'bg-[#F5F2EB] text-[#4e4635] border-[#E6DED1] hover:border-[#775a00]'
                         }`}
                       >
-                        {fam}
+                        <span>{family}</span>
+                        <span
+                          className={`text-[10px] font-mono px-1 rounded ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-black/5 text-[#6E665F]'
+                          }`}
+                        >
+                          {count}
+                        </span>
                       </button>
                     );
                   })}
@@ -519,7 +546,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
           </aside>
 
           {/* Main Catalog Grid */}
-          <main className="lg:col-span-8 xl:col-span-9 space-y-6">
+          <main className="lg:col-span-9 xl:col-span-9.5 2xl:col-span-10 space-y-5">
             {/* Top Toolbar */}
             <div className="bg-white p-3.5 sm:p-4 rounded-xl shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4 border border-[#E6DED1]">
               {/* Left: Fragrance Count & Active Filter Tags */}
@@ -538,7 +565,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {selectedGender !== 'all' && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#FAF8F5] border border-[#c59b27]/60 text-[#775a00] rounded-full text-[11px] font-medium">
-                      <span>{selectedGender === 'fem' ? 'Mujer' : 'Hombre'}</span>
+                      <span>{selectedGender === 'fem' ? 'Damas' : selectedGender === 'masc' ? 'Caballeros' : 'Unisex'}</span>
                       <button
                         onClick={() => handleGenderChange('all')}
                         className="hover:text-red-700 cursor-pointer font-bold leading-none text-xs ml-0.5"
@@ -644,45 +671,8 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                 </button>
               </div>
 
-              {/* Right: Quick Format Pills & Sort Dropdown */}
-              <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end text-xs">
-                {/* Quick Size Toggle */}
-                <div className="hidden sm:flex items-center bg-[#F5F2EB] p-0.5 rounded-lg border border-[#E6DED1]">
-                  <button
-                    type="button"
-                    onClick={() => handleFormatChange('all')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                      selectedFormat === 'all'
-                        ? 'bg-white text-[#1A1817] shadow-xs'
-                        : 'text-[#6E665F] hover:text-[#1A1817]'
-                    }`}
-                  >
-                    Todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleFormatChange('50ml')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                      selectedFormat === '50ml'
-                        ? 'bg-[#775a00] text-white shadow-xs font-bold'
-                        : 'text-[#6E665F] hover:text-[#1A1817]'
-                    }`}
-                  >
-                    50ml ($10)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleFormatChange('100ml')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
-                      selectedFormat === '100ml'
-                        ? 'bg-[#775a00] text-white shadow-xs font-bold'
-                        : 'text-[#6E665F] hover:text-[#1A1817]'
-                    }`}
-                  >
-                    100ml ($15)
-                  </button>
-                </div>
-
+              {/* Right: Sort Dropdown */}
+              <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto justify-end text-xs">
                 <div className="flex items-center gap-1.5 ml-auto md:ml-0">
                   <label className="text-[#6E665F] whitespace-nowrap text-xs">Ordenar:</label>
                   <select
@@ -704,7 +694,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
             </div>
 
             {/* Perfumes Product Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5">
               {paginatedPerfumes.length === 0 ? (
                 <div className="col-span-full py-16 text-center text-[#6E665F] bg-white rounded-xl border border-dashed border-[#E6DED1] p-8">
                   <span className="material-symbols-outlined text-4xl text-[#c59b27]/60 mb-2 block">search_off</span>
@@ -770,7 +760,7 @@ export const CatalogVaultView: React.FC<CatalogVaultViewProps> = ({
                       {/* Sub-tag de propuesta de valor */}
                       <div className="flex items-center gap-1.5 text-[10px] text-[#775a00] bg-[#FAF8F5] px-2.5 py-1 rounded-md border border-[#E6DED1]/60">
                         <span className="material-symbols-outlined text-[13px] text-[#B8860B]">verified</span>
-                        <span className="font-medium">Inspiración 1:1 • Alta Fijación</span>
+                        <span className="font-medium">Contratipo Fino • Alta Fijación</span>
                       </div>
 
                       {perfume.stock > 0 ? (

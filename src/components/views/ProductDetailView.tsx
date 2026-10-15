@@ -320,7 +320,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-0.5">
                   <div className="flex items-center gap-1.5 text-[#4e4635] text-[11px] font-medium">
                     <span className="material-symbols-outlined text-[15px] text-[#B8860B]">verified</span>
-                    <span>Inspiración Premium 1:1 • Mismo Olor</span>
+                    <span>Contratipo Fino • Mismo Olor</span>
                   </div>
                 </div>
 
@@ -350,7 +350,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
                     <span>Garantía de Fórmula Alura</span>
                   </span>
                   <span className="text-[10px] text-[#B8860B] font-serif uppercase tracking-wider font-semibold">
-                    Réplica Exacta &amp; Fijación Superior
+                    Contratipo Fino &amp; Fijación Superior
                   </span>
                 </div>
 
@@ -365,7 +365,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
                         Mismo Olor
                       </span>
                       <span className="text-[10px] text-[#6E665F] block leading-tight mt-0.5">
-                        Calibración 1:1 idéntica a la fórmula original de {perfume.house}.
+                        Calibración idéntica a la fórmula original de {perfume.house}.
                       </span>
                     </div>
                   </div>
@@ -536,7 +536,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ onAddToCar
               <div className="grid grid-cols-3 gap-2.5 sm:gap-3 text-center text-[10px] text-[#6E665F]">
                 <div className="p-2.5 rounded-xl bg-[#F5F2EB]/70 border border-[#E6DED1]/70 flex items-center justify-center gap-1.5">
                   <span className="material-symbols-outlined text-[15px] text-[#775a00]">sync</span>
-                  <span className="font-semibold text-[#1A1817]">Mismo Olor 1:1</span>
+                  <span className="font-semibold text-[#1A1817]">Mismo Olor Fiel</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-[#F5F2EB]/70 border border-[#E6DED1]/70 flex items-center justify-center gap-1.5">
                   <span className="material-symbols-outlined text-[15px] text-[#775a00]">schedule</span>

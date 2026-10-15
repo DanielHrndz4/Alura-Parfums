@@ -252,7 +252,10 @@ export class PerfumeRepository {
     perfumes.forEach((p) => this.saveToSupabase(p));
   }
 
-  static async enrichAllPerfumes(): Promise<Perfume[]> {
+  static async enrichAllPerfumes(
+    onProgress?: (info: { current: number; total: number; name: string; percentage: number }) => void,
+    signal?: AbortSignal
+  ): Promise<Perfume[]> {
     let list = await this.fetchFromSupabase();
     if (!list || list.length === 0) {
       list = this.getAll();
@@ -260,18 +263,44 @@ export class PerfumeRepository {
     if (list.length === 0) return [];
 
     const enrichedList: Perfume[] = [];
-    for (const item of list) {
+    for (let i = 0; i < list.length; i++) {
+      if (signal?.aborted) {
+        console.warn('Análisis del catálogo detenido a petición del usuario.');
+        break;
+      }
+      const item = list[i];
+      if (onProgress) {
+        onProgress({
+          current: i + 1,
+          total: list.length,
+          name: item.name,
+          percentage: Math.round(((i + 1) / list.length) * 100),
+        });
+      }
+
       try {
-        const enriched = await GeminiService.enrichPerfume(item);
+        const enriched = await GeminiService.enrichPerfume(item, item.imageUrl);
         enrichedList.push(enriched);
+
+        // Guardar progresivamente para no perder datos si el usuario recarga o detiene
+        const currentBatch = [
+          ...enrichedList,
+          ...list.slice(enrichedList.length),
+        ];
+        LocalStorageAdapter.set(this.STORAGE_KEY, currentBatch);
+        this.saveToSupabase(enriched);
       } catch (err) {
         console.warn('Error enriqueciendo perfume:', item.name, err);
         enrichedList.push(item);
       }
     }
 
-    this.save(enrichedList);
-    return enrichedList;
+    const finalResult = [
+      ...enrichedList,
+      ...list.slice(enrichedList.length),
+    ];
+    this.save(finalResult);
+    return finalResult;
   }
 
   static delete(id: string): void {

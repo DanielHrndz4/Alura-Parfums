@@ -68,13 +68,36 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
     <>
       {/* Topmost Luxury Ticker */}
       <div className="w-full bg-[#F5F2EB]/80 px-3 sm:px-6 md:px-10 border-b border-[#E6DED1]/40 relative z-30">
-        <div className="max-w-[1440px] mx-auto h-7 sm:h-8 flex items-center justify-between text-[#4e4635] font-label-sm uppercase tracking-widest text-[9px] sm:text-[10px]">
-          <span className="truncate max-w-[280px] sm:max-w-none">Inspiraciones 1:1 • Misma Esencia • Frascos de 50ml ($10) y 100ml ($15 USD)</span>
-          <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-            <span className="hidden md:inline">Place Vendôme • Mayfair</span>
+        <div className="max-w-[1760px] mx-auto h-7 sm:h-8 flex items-center justify-between text-[#4e4635] font-label-sm uppercase tracking-widest text-[9px] sm:text-[10px]">
+          <span className="truncate max-w-[280px] sm:max-w-none">Contratipos de Alta Gama • Misma Esencia • Frascos de 50ml ($10) y 100ml ($15 USD)</span>
+          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
+            <a
+              href="https://www.instagram.com/alurasparfums"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#775a00] transition-colors flex items-center gap-1 font-medium lowercase"
+              title="Instagram @alurasparfums"
+            >
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+              </svg>
+              <span className="hidden sm:inline">Instagram</span>
+            </a>
+            <a
+              href="https://www.facebook.com/alurasparfums"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#775a00] transition-colors flex items-center gap-1 font-medium"
+              title="Facebook Alura Parfums"
+            >
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+              <span className="hidden sm:inline">Facebook</span>
+            </a>
             <span className="text-[#775a00] font-semibold flex items-center gap-1">
               <span className="material-symbols-outlined text-[13px] sm:text-[14px]">verified</span>
-              <span>Fijación Superior +12h</span>
+              <span>Fijación +12h</span>
             </span>
           </div>
         </div>
@@ -90,7 +113,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
       >
 
       {/* Main Bar */}
-      <div className="h-16 sm:h-20 max-w-[1440px] mx-auto px-3 sm:px-6 md:px-10 flex items-center justify-between gap-2">
+      <div className="h-16 sm:h-20 max-w-[1760px] mx-auto px-3 sm:px-6 md:px-10 flex items-center justify-between gap-2">
         <div className="flex items-center gap-4 flex-1">
           <form onSubmit={handleSearchSubmit} className="hidden sm:flex relative items-center w-36 sm:w-48 md:w-64">
             <input
@@ -167,23 +190,36 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
             : 'max-h-0 opacity-0 border-t-0 pointer-events-none'
         }`}
       >
-        <nav className="max-w-[1440px] mx-auto h-12 px-4 md:px-10 flex items-center justify-center gap-3 sm:gap-6 md:gap-8 overflow-x-auto">
-          {/* 1. Todo el Catálogo */}
+        <nav className="max-w-[1760px] mx-auto h-12 px-4 md:px-10 flex items-center justify-center gap-3 sm:gap-6 md:gap-8 overflow-x-auto">
+          {/* 1. Inicio */}
+          <button
+            onClick={() => navigate('/')}
+            className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
+              location.pathname === '/'
+                ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
+                : 'text-[#4e4635] hover:text-[#1b1c1a]'
+            }`}
+          >
+            Inicio
+          </button>
+
+          {/* 2. Colección Completa */}
           <button
             onClick={() => navigate('/collection')}
             className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
               location.pathname === '/collection' &&
               !searchParams.get('gender') &&
               !searchParams.get('format') &&
-              !searchParams.get('sort')
+              !searchParams.get('bestsellers') &&
+              !searchParams.get('q')
                 ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
                 : 'text-[#4e4635] hover:text-[#1b1c1a]'
             }`}
           >
-            Todo el Catálogo
+            Colección Completa
           </button>
 
-          {/* 2. Fragancias Femeninas (Mujer) */}
+          {/* 3. Fragancias Femeninas (Damas) */}
           <button
             onClick={() => navigate('/collection?gender=fem')}
             className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
@@ -192,10 +228,10 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
                 : 'text-[#4e4635] hover:text-[#1b1c1a]'
             }`}
           >
-            Mujer
+            Damas
           </button>
 
-          {/* 3. Fragancias Masculinas (Hombre) */}
+          {/* 4. Fragancias Masculinas (Caballeros) */}
           <button
             onClick={() => navigate('/collection?gender=masc')}
             className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
@@ -204,31 +240,19 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
                 : 'text-[#4e4635] hover:text-[#1b1c1a]'
             }`}
           >
-            Hombre
+            Caballeros
           </button>
 
-          {/* 4. Frascos de 50ml ($10 USD) */}
+          {/* 5. Fragancias Unisex */}
           <button
-            onClick={() => navigate('/collection?format=50ml')}
+            onClick={() => navigate('/collection?gender=unisex')}
             className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
-              location.pathname === '/collection' && searchParams.get('format') === '50ml'
+              location.pathname === '/collection' && searchParams.get('gender') === 'unisex'
                 ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
                 : 'text-[#4e4635] hover:text-[#1b1c1a]'
             }`}
           >
-            50ml • $10 USD
-          </button>
-
-          {/* 5. Frascos de 100ml ($15 USD) */}
-          <button
-            onClick={() => navigate('/collection?format=100ml')}
-            className={`font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs ${
-              location.pathname === '/collection' && searchParams.get('format') === '100ml'
-                ? 'text-[#775a00] font-bold border-b-2 border-[#775a00]'
-                : 'text-[#4e4635] hover:text-[#1b1c1a]'
-            }`}
-          >
-            100ml • $15 USD
+            Unisex
           </button>
 
           {/* 6. Más Vendidos */}
@@ -241,6 +265,25 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
             }`}
           >
             ★ Más Vendidos
+          </button>
+
+          {/* 6. Garantía de Fidelidad */}
+          <button
+            onClick={() => {
+              if (location.pathname === '/') {
+                const el = document.getElementById('calidad-garantia');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              } else {
+                navigate('/#calidad-garantia');
+                setTimeout(() => {
+                  const el = document.getElementById('calidad-garantia');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }, 150);
+              }
+            }}
+            className="font-label-md text-label-md uppercase tracking-[0.14em] py-1.5 px-2 transition-all whitespace-nowrap cursor-pointer text-xs text-[#4e4635] hover:text-[#1b1c1a]"
+          >
+            Garantía de Fidelidad
           </button>
         </nav>
       </div>

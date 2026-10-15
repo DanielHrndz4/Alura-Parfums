@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ClientProfile } from '../../types/sale';
 import { SalesRepository } from '../../repositories/salesRepository';
+import { PerfumeRepository } from '../../repositories/perfumeRepository';
 
 interface EditClientModalProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const catalogPerfumes = useMemo(() => PerfumeRepository.getAll(), []);
+
   const popularHouses = [
     'Maison Alura',
     'Creed',
@@ -43,9 +46,14 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
     if (client) {
       setName(client.name || '');
       setPhone(client.phone || '');
-      setFavoriteHouse(client.favoriteHouse || 'Maison Alura');
-      setLastFragrance(client.lastFragrance || '');
-      setLastFormat(client.lastFormat || '100ml');
+      
+      const initialFragrance = client.lastFragrance || '';
+      const initialFormat = client.lastFormat || '100ml';
+      const initialHouse = client.favoriteHouse || 'Maison Alura';
+
+      setLastFragrance(initialFragrance);
+      setLastFormat(initialFormat.toLowerCase().includes('50ml') ? '50ml' : '100ml');
+      setFavoriteHouse(initialHouse);
       setTier(client.tier || 'Cliente');
       setPendingBalance(client.pendingBalance !== undefined ? client.pendingBalance.toString() : '0');
       setNotes(client.notes || '');
@@ -74,7 +82,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
         phone: phone.trim() || undefined,
         favoriteHouse: favoriteHouse.trim() || 'Maison Alura',
         lastFragrance: lastFragrance.trim() || undefined,
-        lastFormat: lastFormat.trim() || undefined,
+        lastFormat: lastFormat.trim().toLowerCase().includes('50ml') ? '50ml' : '100ml',
         tier: tier.trim() || 'Cliente',
         pendingBalance: Number(parsedBalance.toFixed(2)),
         notes: notes.trim() || undefined,
@@ -223,16 +231,42 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
             {/* Perfume Comprado / Adquirido */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
-                <label className="block text-[#1A1817] font-bold uppercase tracking-wider text-[11px] mb-1.5">
-                  Perfume Comprado / Frasco Adquirido
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[#1A1817] font-bold uppercase tracking-wider text-[11px]">
+                    Perfume Comprado / Frasco Adquirido
+                  </label>
+                  {lastFragrance && (
+                    <span className="text-[10px] text-[#2D5A27] font-bold flex items-center gap-0.5">
+                      <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                      <span>Sincronizado</span>
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
+                  list="catalog-perfumes-list"
                   value={lastFragrance}
-                  onChange={(e) => setLastFragrance(e.target.value)}
-                  placeholder="Ej. Hawas, La Vie Est Belle, 9 PM..."
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLastFragrance(val);
+                    const found = catalogPerfumes.find(
+                      (p) => p.name.toLowerCase() === val.toLowerCase()
+                    );
+                    if (found) {
+                      if (found.house) setFavoriteHouse(found.house);
+                      if (found.format) setLastFormat(found.format.toLowerCase().includes('50ml') ? '50ml' : '100ml');
+                    }
+                  }}
+                  placeholder="Ej. Hawas, Born in Roma, 9 PM..."
                   className="w-full px-3 py-2 bg-white border border-[#E6DED1] rounded-none text-xs text-[#1A1817] focus:outline-hidden focus:border-[#c59b27] transition-colors"
                 />
+                <datalist id="catalog-perfumes-list">
+                  {catalogPerfumes.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.house} • {p.format}
+                    </option>
+                  ))}
+                </datalist>
               </div>
 
               <div>
@@ -240,7 +274,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({
                   Formato / Tamaño
                 </label>
                 <select
-                  value={lastFormat}
+                  value={lastFormat.toLowerCase().includes('50ml') ? '50ml' : '100ml'}
                   onChange={(e) => setLastFormat(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-[#E6DED1] rounded-none text-xs text-[#1A1817] focus:outline-hidden focus:border-[#c59b27] transition-colors cursor-pointer"
                 >

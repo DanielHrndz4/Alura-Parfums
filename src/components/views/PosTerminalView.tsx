@@ -21,6 +21,9 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
     SalesRepository.fetchClientsFromSupabase().then((data) => {
       if (data && data.length > 0) setClients(data);
     });
+    SalesRepository.fetchSalesFromSupabase().then((data) => {
+      if (data && data.length > 0) setSalesLog(data);
+    });
   }, []);
 
   const showToast = (msg: string) => {
@@ -194,7 +197,7 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
               </h1>
             </div>
             <p className="text-xs text-[#6E665F] mt-1">
-              Place Vendôme • Frascos réplica 1:1 con fijación prolongada (+8-12h).
+              San Salvador • Contratipos finos con fijación prolongada (+8-12h).
             </p>
           </div>
         </div>
@@ -929,7 +932,14 @@ export const PosTerminalView: React.FC<PosTerminalViewProps> = ({ onNavigate }) 
               </p>
             </div>
 
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <button
+                onClick={() => onNavigate('/admin/sold-perfumes')}
+                className="px-3 py-1.5 rounded-none bg-[#c59b27] text-[#1A1817] font-bold flex items-center gap-1.5 hover:bg-[#D4AF37] transition-colors border border-[#c59b27] cursor-pointer shadow-2xs"
+              >
+                <span className="material-symbols-outlined text-[16px]">analytics</span>
+                <span>Ver Estadísticas de Perfumes</span>
+              </button>
               <button
                 onClick={() => alert('Exportando libro de ventas diario a formato Excel...')}
                 className="px-3 py-1.5 rounded-none bg-[#FAF8F5] text-[#2C2826] font-semibold flex items-center gap-1.5 hover:bg-[#F5F2EB] transition-colors border border-[#E6DED1] cursor-pointer"

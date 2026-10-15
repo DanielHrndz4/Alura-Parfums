@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PerfumeRepository, OLFACTORY_FAMILIES_DATA } from '../../repositories/perfumeRepository';
 import { Perfume } from '../../types/perfume';
 
@@ -12,37 +12,80 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
   onAddToCart,
 }) => {
   const [bestsellerFilter, setBestsellerFilter] = useState<'all' | '100ml' | '50ml'>('all');
-  const perfumes = PerfumeRepository.getAll();
+  const [perfumes, setPerfumes] = useState<Perfume[]>(() => PerfumeRepository.getAll());
 
-  // Curated 4 bestsellers for salon section
-  const bestsellers = perfumes.filter((p) => p.isBestseller).slice(0, 4);
+  useEffect(() => {
+    PerfumeRepository.fetchFromSupabase().then((data) => {
+      if (data && data.length > 0) setPerfumes(data);
+    });
+  }, []);
 
-  const filteredBestsellers = bestsellers.filter((p) => {
-    if (bestsellerFilter === '100ml') return p.format.includes('100ml');
-    if (bestsellerFilter === '50ml') return p.format.includes('50ml');
-    return true;
-  });
+  // Real products from the database for the hero section
+  const heroPerfume = useMemo(() => {
+    return perfumes.find((p) => p.isBestseller) || perfumes[0] || {
+      id: 'default-hero',
+      name: 'Absolu Aventus',
+      house: 'Creed',
+      price: 15,
+      format: '100ml • Eau de Parfum',
+      imageUrl: '/images/hero_luxury_flacon.jpg',
+      stock: 2,
+    };
+  }, [perfumes]);
+
+  const heroSecondaryPerfume = useMemo(() => {
+    return perfumes.find((p) => p.id !== heroPerfume?.id && p.gender === 'fem') || perfumes[1];
+  }, [perfumes, heroPerfume]);
+
+  // Real bestsellers from the database
+  const bestsellers = useMemo(() => {
+    const list = perfumes.filter((p) => p.isBestseller);
+    return list.length > 0 ? list : perfumes.slice(0, 6);
+  }, [perfumes]);
+
+  const filteredBestsellers = useMemo(() => {
+    return bestsellers.filter((p) => {
+      if (bestsellerFilter === '100ml') return p.format.toLowerCase().includes('100ml');
+      if (bestsellerFilter === '50ml') return p.format.toLowerCase().includes('50ml');
+      return true;
+    });
+  }, [bestsellers, bestsellerFilter]);
+
+  // Dynamic Olfactory Families with real counts from database
+  const dynamicFamilies = useMemo(() => {
+    return OLFACTORY_FAMILIES_DATA.map((fam) => {
+      const count = perfumes.filter((p) => {
+        const familyName = p.family?.toLowerCase() || '';
+        const famTarget = fam.name.toLowerCase();
+        return familyName.includes(famTarget) || famTarget.includes(familyName);
+      }).length;
+      return {
+        ...fam,
+        creationsCount: count > 0 ? count : fam.creationsCount,
+      };
+    });
+  }, [perfumes]);
 
   return (
     <div className="flex flex-col w-full">
       {/* 1. EDITORIAL HERO SECTION */}
       <section className="relative w-full overflow-hidden bg-[#fbf9f5] pb-10">
-        <div className="max-w-[1440px] mx-auto px-4 md:px-10 pt-6">
+        <div className="max-w-[1760px] mx-auto px-4 md:px-10 pt-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center min-h-[600px]">
             {/* Left Editorial Copy (7 Cols) */}
             <div className="lg:col-span-7 flex flex-col justify-center pr-0 lg:pr-8 z-10">
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-8 h-[1px] bg-[#c59b27]"></span>
                 <span className="font-label-sm text-label-sm tracking-[0.3em] uppercase text-[#B8860B] text-xs font-bold">
-                  Haute Parfumerie • Inspiración 1:1
+                  Haute Parfumerie • Contratipos Finos
                 </span>
               </div>
               <h1 className="font-display-lg text-[#1A1817] tracking-tight mb-4 leading-none font-serif text-4xl sm:text-5xl md:text-6xl">
-                Réplicas de Lujo • <br />
+                Contratipos de Lujo • <br />
                 <span className="italic font-normal text-[#775a00]">Mismo Olor, Mayor Fijación</span>
               </h1>
               <p className="font-body-lg text-[#6E665F] max-w-xl mb-8 leading-relaxed text-base sm:text-lg">
-                Creamos réplicas de los perfumes más exclusivos del mundo con el estándar de calidad más alto. Fórmulas de alta concentración con la misma pirámide olfativa y fijación prolongada de 8 a 12 horas, en frascos sellados de 50ml ($10 USD) y 100ml ($15 USD).
+                Elaboramos los mejores contratipos finos de los perfumes más exclusivos del mundo con el estándar de calidad más alto. Fórmulas de alta concentración con la misma pirámide olfativa y fijación prolongada de 8 a 12 horas, en frascos sellados de 50ml ($10 USD) y 100ml ($15 USD) en San Salvador.
               </p>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-8">
                 <button
@@ -59,7 +102,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   }}
                   className="w-full sm:w-auto justify-center bg-white hover:bg-[#F5F2EB] text-[#2C2826] font-title-md text-title-md px-6 sm:px-8 py-3 rounded-lg border border-[#E6DED1] shadow-sm hover:shadow-md transition-all flex items-center gap-2 cursor-pointer font-semibold"
                 >
-                  <span>Garantía de Calidad 1:1</span>
+                  <span>Garantía de Fidelidad Olfativa</span>
                   <span className="material-symbols-outlined text-[18px] text-[#B8860B]">verified</span>
                 </button>
               </div>
@@ -68,7 +111,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
               <div className="flex items-center gap-6 sm:gap-8 pt-4 border-t border-[#E6DED1]/60">
                 <div className="flex flex-col">
                   <span className="font-display-lg text-[28px] leading-tight text-[#1A1817] font-semibold font-serif">
-                    1:1
+                    Fiel
                   </span>
                   <span className="font-label-sm text-label-sm uppercase tracking-widest text-[#6E665F] text-[10px]">
                     Mismo Olor Exacto
@@ -95,60 +138,70 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
               </div>
             </div>
 
-            {/* Right Asymmetric Visual Showcase (5 Cols) */}
+            {/* Right Asymmetric Visual Showcase (5 Cols) - Tied to real database */}
             <div className="lg:col-span-5 relative mt-6 lg:mt-0">
-              <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-2xl bg-[#F5F2EB] flex items-end p-6 group border border-[#E6DED1]">
+              <div
+                onClick={() => onNavigate(`/product/${heroPerfume.id}`)}
+                className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-2xl bg-[#F5F2EB] flex items-end p-6 group border border-[#E6DED1] cursor-pointer"
+              >
                 <img
                   className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  alt="Alta perfumería réplica exacta 1:1 en frasco de lujo"
-                  src="/images/hero_luxury_flacon.jpg"
+                  alt={`Contratipo fino ${heroPerfume.name} de ${heroPerfume.house}`}
+                  src={heroPerfume.imageUrl}
+                  referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#1A1817]/80 via-[#1A1817]/25 to-transparent"></div>
                 
                 <div className="relative z-10 w-full bg-white/95 backdrop-blur-md p-4 rounded-lg shadow-md flex items-center justify-between border border-[#E6DED1]">
                   <div>
                     <span className="font-label-sm text-label-sm uppercase tracking-widest text-[#B8860B] block text-[10px] font-bold">
-                      Edición Maestra • Réplica 1:1
+                      Edición Maestra • Contratipo Fino
                     </span>
                     <p className="font-headline-sm text-headline-sm text-[#1A1817] font-serif font-semibold">
-                      Absolu Aventus
+                      {heroPerfume.name}
                     </p>
                     <p className="font-body-sm text-body-sm text-[#6E665F] text-xs">
-                      Extracto Puro • Frasco 100ml
+                      {heroPerfume.house} • {heroPerfume.format}
                     </p>
                   </div>
                   <div className="text-right">
                     <span className="font-title-md text-title-md font-semibold text-[#1A1817] block font-mono">
-                      $15.00
+                      ${heroPerfume.price.toFixed(2)}
                     </span>
                     <span className="font-label-sm text-label-sm text-[#2D5A27] bg-[#F0F5EE] px-2 py-0.5 rounded uppercase font-bold text-[10px]">
-                      Mismo Olor
+                      {heroPerfume.stock > 0 ? 'En Stock' : 'Bajo Pedido'}
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Secondary floating bottle pill (Negative offset) */}
-              <div className="hidden sm:flex absolute -bottom-6 -left-8 bg-[#F5F2EB]/95 backdrop-blur-xl p-4 rounded-xl shadow-xl max-w-xs items-center gap-4 z-20 border border-[#E6DED1]">
-                <div className="w-12 h-14 rounded overflow-hidden flex-shrink-0 bg-white border border-[#E6DED1]">
-                  <img
-                    className="w-full h-full object-cover"
-                    alt="Valentino Donna Born In Roma"
-                    src="/images/hero_luxury_flacon.jpg"
-                  />
+              {heroSecondaryPerfume && (
+                <div
+                  onClick={() => onNavigate(`/product/${heroSecondaryPerfume.id}`)}
+                  className="hidden sm:flex absolute -bottom-6 -left-8 bg-[#F5F2EB]/95 backdrop-blur-xl p-4 rounded-xl shadow-xl max-w-xs items-center gap-4 z-20 border border-[#E6DED1] cursor-pointer"
+                >
+                  <div className="w-12 h-14 rounded overflow-hidden flex-shrink-0 bg-white border border-[#E6DED1]">
+                    <img
+                      className="w-full h-full object-cover"
+                      alt={heroSecondaryPerfume.name}
+                      src={heroSecondaryPerfume.imageUrl}
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div>
+                    <span className="font-label-sm text-label-sm uppercase tracking-widest text-[#B8860B] block text-[9px] font-bold">
+                      {heroSecondaryPerfume.house}
+                    </span>
+                    <p className="font-title-md text-[#1A1817] font-semibold text-xs leading-tight">
+                      {heroSecondaryPerfume.name}
+                    </p>
+                    <span className="font-mono text-xs text-[#775a00] font-bold">
+                      ${heroSecondaryPerfume.price.toFixed(2)} USD
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-label-sm text-label-sm text-[#775a00] uppercase tracking-widest font-bold text-[10px]">
-                    Frasco Sellado
-                  </span>
-                  <p className="font-title-md text-title-md text-[#1A1817] leading-snug text-xs font-semibold">
-                    Donna Born In Roma
-                  </p>
-                  <p className="font-body-sm text-body-sm text-[#2D5A27] font-mono font-bold text-[11px]">
-                    50ml • $10.00 USD
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -163,7 +216,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                 <span className="material-symbols-outlined text-[24px]">sync</span>
               </div>
               <div className="flex flex-col">
-                <span className="font-title-md text-[#1A1817] font-semibold text-sm">1:1 Mismo Olor</span>
+                <span className="font-title-md text-[#1A1817] font-semibold text-sm">Mismo Olor &amp; Esencia</span>
                 <span className="font-body-sm text-[#6E665F] text-xs">Calibración idéntica a la fórmula original</span>
               </div>
             </div>
@@ -216,7 +269,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                 Selección del Salon • Bestsellers
               </h2>
               <p className="font-body-md text-[#6E665F] mt-1 text-sm">
-                Réplicas de ultra-lujo en presentaciones de 50ml y 100ml disponibles de inmediato.
+                Contratipos de ultra-lujo en presentaciones de 50ml y 100ml disponibles de inmediato.
               </p>
             </div>
             <div className="mt-4 md:mt-0 flex items-center gap-2">
@@ -343,7 +396,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   ¿Buscas una fragancia específica en versión 50ml o 100ml?
                 </p>
                 <p className="font-body-sm text-body-sm text-[#6E665F] text-xs">
-                  Contamos con las mejores réplicas 1:1 de Creed, Valentino, Tom Ford, Lancôme, Lattafa y más.
+                  Contamos con los mejores contratipos finos de Creed, Valentino, Tom Ford, Lancôme, Lattafa y más.
                 </p>
               </div>
             </div>
@@ -357,7 +410,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
         </div>
       </section>
 
-      {/* 4. 'EL SECRETO DE NUESTRA CALIDAD' (1:1 LUXURY REPLICAS & LONGEVITY) */}
+      {/* 4. 'EL SECRETO DE NUESTRA CALIDAD' (CONTRATIPOS DE ALTA GAMA & LONGEVIDAD) */}
       <section className="w-full bg-[#F5F2EB] py-16" id="calidad-garantia">
         <div className="max-w-[1440px] mx-auto px-4 md:px-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
@@ -366,7 +419,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
               <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-2xl bg-[#ECE7DE] border border-[#E6DED1]">
                 <img
                   className="w-full h-full object-cover"
-                  alt="Laboratorio de formulación y maceración artesanal de réplicas 1:1 Alura Parfums"
+                  alt="Laboratorio de formulación y maceración artesanal de contratipos Alura Parfums"
                   src="/images/atelier_craft.jpg"
                 />
               </div>
@@ -374,7 +427,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                 <div className="flex items-center gap-1 text-[#B8860B] mb-1">
                   <span className="material-symbols-outlined text-[16px]">verified</span>
                   <span className="font-label-sm text-label-sm uppercase tracking-widest font-bold text-[10px]">
-                    Garantía 1:1 Insuperable
+                    Garantía de Fidelidad Insuperable
                   </span>
                 </div>
                 <p className="font-body-sm text-body-sm text-[#6E665F] leading-snug text-xs">
@@ -392,10 +445,10 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
               </div>
               <h2 className="font-headline-lg text-[#1A1817] tracking-tight mb-4 font-serif text-3xl md:text-4xl">
                 El Secreto de Nuestra Calidad • <br />
-                <span className="italic font-normal text-[#775a00]">La Réplica Perfecta 1:1</span>
+                <span className="italic font-normal text-[#775a00]">El Contratipo Perfecto</span>
               </h2>
               <p className="font-body-lg text-[#6E665F] mb-6 leading-relaxed text-sm md:text-base">
-                No creemos en imitaciones diluidas ni en fórmulas efímeras. En Alura elaboramos réplicas de la más alta graduación con la misma arquitectura olfativa que los perfumes originales más exclusivos. Frascos de 50ml y 100ml diseñados para ofrecerte presencia, estela y duración extraordinaria.
+                No creemos en imitaciones diluidas ni en fórmulas efímeras. En Alura elaboramos contratipos de la más alta graduación con la misma arquitectura olfativa que los perfumes originales más exclusivos. Frascos de 50ml y 100ml diseñados para ofrecerte presencia, estela y duración extraordinaria.
               </p>
 
               {/* 3 Steps / Pillars */}
@@ -406,7 +459,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   </span>
                   <div>
                     <h4 className="font-title-md text-[#1A1817] font-semibold text-sm">
-                      Fórmula Idéntica 1:1 al Original
+                      Fórmula de Alta Fidelidad al Original
                     </h4>
                     <p className="font-body-sm text-[#6E665F] mt-0.5 text-xs">
                       Replicamos con precisión milimétrica la pirámide aromática: salida vibrante, corazón seductor y fondo denso y duradero.
@@ -450,7 +503,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   className="bg-[#c59b27] hover:bg-[#D4AF37] text-[#1A1817] font-title-md text-title-md px-6 py-3 rounded-lg shadow-md transition-all flex items-center gap-2 font-semibold text-sm cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-                  <span>Explorar Fragancias 1:1</span>
+                  <span>Explorar Contratipos de Lujo</span>
                 </button>
                 <span className="font-label-md text-label-md uppercase tracking-wider text-[#6E665F] text-xs font-semibold">
                   50ml ($10 USD) • 100ml ($15 USD)
@@ -477,7 +530,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {OLFACTORY_FAMILIES_DATA.map((fam) => (
+            {dynamicFamilies.map((fam) => (
               <button
                 key={fam.id}
                 onClick={() => onNavigate('vault')}
@@ -519,10 +572,10 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
             </span>
             <div className="max-w-3xl mx-auto">
               <blockquote className="font-headline-lg text-2xl sm:text-3xl leading-tight text-[#1A1817] italic font-normal my-4 font-serif">
-                “Alura ha redefinido el estándar de réplicas de ultra-lujo. Su fidelidad olfativa 1:1 y fijación de más de 10 horas rivalizan con los frascos originales de $350 USD, brindando la máxima distinción a un precio inigualable.”
+                “Alura ha redefinido el estándar de contratipos de ultra-lujo en San Salvador. Su fidelidad olfativa premium y fijación de más de 10 horas rivalizan con los frascos originales de diseñador, brindando la máxima distinción a un precio inigualable.”
               </blockquote>
               <cite className="font-label-md text-label-md uppercase tracking-[0.2em] text-[#6E665F] not-italic block mt-2 text-xs">
-                — REVISTA ESTILO & ALTA PERFUMERÍA
+                — CLIENTES EN SAN SALVADOR, EL SALVADOR
               </cite>
             </div>
           </div>
@@ -538,7 +591,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   ))}
                 </div>
                 <p className="font-body-md text-[#2C2826] leading-relaxed italic mb-4 text-xs">
-                  “Compré la réplica de Absolu Aventus en 100ml ($15 USD) y quedé atónito. El secado ahumado con piña es exactamente idéntico al original de $450 USD. Me duró más de 10 horas en camisa y piel.”
+                  “Compré el contratipo de Absolu Aventus en 100ml ($15 USD) y quedé atónito. El secado ahumado con piña es idéntico al perfume de nicho. Me duró más de 10 horas en camisa y piel aquí en San Salvador.”
                 </p>
               </div>
               <div className="flex items-center gap-3 pt-2 border-t border-[#E6DED1]/60">
@@ -550,7 +603,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                     Marcos Casares
                   </span>
                   <span className="font-label-sm text-[#6E665F] text-[10px]">
-                    Madrid • Cliente Verificado
+                    San Salvador, El Salvador • Cliente Verificado
                   </span>
                 </div>
               </div>
@@ -566,19 +619,19 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   ))}
                 </div>
                 <p className="font-body-md text-[#2C2826] leading-relaxed italic mb-4 text-xs">
-                  “Donna Born in Roma de 100ml es espectacular. La fijación del jazmín y la vainilla bourbon me dura todo el día en el trabajo. Llegó sellado y en perfecto estado. Ya es mi compra fija.”
+                  “Donna Born in Roma de 100ml es espectacular. La fijación del jazmín y la vainilla bourbon me dura todo el día en el trabajo. La entrega en Santa Tecla fue súper rápida y llegó sellado. Ya es mi compra fija.”
                 </p>
               </div>
               <div className="flex items-center gap-3 pt-2 border-t border-[#E6DED1]/60">
                 <div className="w-8 h-8 rounded-full bg-[#ECE7DE] flex items-center justify-center font-bold text-[#1A1817] font-label-sm text-xs">
-                  ED
+                  EV
                 </div>
                 <div>
                   <span className="font-title-md text-[#1A1817] font-semibold block leading-tight text-xs">
-                    Elena de la Vega
+                    Elena Vásquez
                   </span>
                   <span className="font-label-sm text-[#6E665F] text-[10px]">
-                    Ciudad de México • Cliente VIP
+                    Santa Tecla, El Salvador • Cliente VIP
                   </span>
                 </div>
               </div>
@@ -594,7 +647,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   ))}
                 </div>
                 <p className="font-body-md text-[#2C2826] leading-relaxed italic mb-4 text-xs">
-                  “Tengo varios perfumes de diseñador y quise probar Khamrah Qahwa en versión 50ml ($10 USD). Es una auténtica joya, proyección pesada y cumplidos constantes. La mejor réplica que he probado.”
+                  “Tengo varios perfumes de diseñador y quise probar Khamrah Qahwa en versión 50ml ($10 USD). Es una auténtica joya, proyección pesada y cumplidos constantes. El mejor contratipo que he probado en El Salvador.”
                 </p>
               </div>
               <div className="flex items-center gap-3 pt-2 border-t border-[#E6DED1]/60">
@@ -606,7 +659,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                     Julián Lozano
                   </span>
                   <span className="font-label-sm text-[#6E665F] text-[10px]">
-                    Bogotá • Coleccionista
+                    Antiguo Cuscatlán, El Salvador • Coleccionista
                   </span>
                 </div>
               </div>
@@ -627,7 +680,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                 ¿Buscas tu fragancia favorita?
               </h3>
               <p className="font-body-md text-[#6E665F] text-sm">
-                Nuestros especialistas te asesoran de inmediato para recomendarte la réplica exacta de tu perfume original predilecto según la ocasión y tus notas olfativas favoritas.
+                Nuestros especialistas te asesoran de inmediato para recomendarte el contratipo exacto de tu perfume predilecto según la ocasión y tus notas olfativas favoritas.
               </p>
             </div>
             <div className="flex items-center gap-4 z-10 w-full md:w-auto flex-shrink-0">
